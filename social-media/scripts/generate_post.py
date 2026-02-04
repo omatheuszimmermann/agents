@@ -38,8 +38,16 @@ def read_file(path: str) -> str:
 def extract_sections(markdown: str) -> dict:
     sections = {}
     lines = markdown.splitlines()
+    inline_heading_re = re.compile(
+        r"^\s*(?:#{1,6}\s*)?(?:\d+[\)\.\-:]?\s*)?(?:\*\*|__)?\s*"
+        r"(title|description|caption|hashtags|image prompt|prompt|cta|meta)\s*"
+        r"(?:\*\*|__)?\s*:\s*(.+?)\s*$",
+        re.IGNORECASE,
+    )
     heading_re = re.compile(
-        r"^\s*(?:#{1,6}\s*)?(?:\d+[\)\.\-:]?\s*)?(title|description|caption|hashtags|image prompt|cta|meta)\s*$",
+        r"^\s*(?:#{1,6}\s*)?(?:\d+[\)\.\-:]?\s*)?(?:\*\*|__)?\s*"
+        r"(title|description|caption|hashtags|image prompt|prompt|cta|meta)\s*"
+        r"(?:\*\*|__)?\s*$",
         re.IGNORECASE,
     )
 
@@ -67,7 +75,17 @@ def extract_sections(markdown: str) -> dict:
 
     for raw_line in lines:
         line = raw_line.rstrip("\n")
-        m = heading_re.match(line.strip())
+        stripped = line.strip()
+        m_inline = inline_heading_re.match(stripped)
+        if m_inline:
+            found = normalize_heading(m_inline.group(1))
+            if found:
+                flush()
+                sections[found] = m_inline.group(2).strip()
+                current_key = None
+                continue
+
+        m = heading_re.match(stripped)
         if m:
             found = normalize_heading(m.group(1))
             if found:
@@ -83,6 +101,23 @@ def extract_sections(markdown: str) -> dict:
 
     flush()
     return sections
+
+def render_output_markdown(post_number: int, sections: dict) -> str:
+    description = sections.get("description", "").strip()
+    cta = sections.get("cta", "").strip()
+    hashtags = sections.get("hashtags", "").strip()
+    image_prompt = sections.get("image_prompt", "").strip()
+
+    blocks = [f"Post Number: #{post_number}"]
+    if description:
+        blocks.extend(["Description", description])
+    if cta:
+        blocks.extend(["CTA", cta])
+    if hashtags:
+        blocks.extend(["Hashtags", hashtags])
+    if image_prompt:
+        blocks.extend(["Image Prompt", image_prompt])
+    return "\n\n".join(blocks).strip() + "\n"
 
 def build_discord_messages(markdown: str, post_number: int) -> tuple[str, str]:
     sections = extract_sections(markdown)
@@ -237,19 +272,21 @@ def main():
         max_tokens=int(os.getenv("LLM_MAX_TOKENS", "600")),
     )
 
-    with open(out_file, "w", encoding="utf-8") as f:
-        f.write(content.strip() + "\n")
-
     sections = extract_sections(content)
     description = sections.get("description", "").strip()
     if not description:
-        description = content.strip()
+        description = sections.get("title", "").strip()
     post_number = update_history(history_file, description)
-        
+
+    # Save normalized output structure with post number.
+    with open(out_file, "w", encoding="utf-8") as f:
+        f.write(render_output_markdown(post_number, sections))
+
     # Notify Discord (best-effort)
     notify_script = os.path.join(BASE_DIR, "scripts", "notify_discord.sh")
     if os.path.exists(notify_script):
-        first_message, prompt_message = build_discord_messages(content, post_number)
+        normalized_content = render_output_markdown(post_number, sections)
+        first_message, prompt_message = build_discord_messages(normalized_content, post_number)
         env = os.environ.copy()
         try:
             env["MSG_ARG"] = first_message
