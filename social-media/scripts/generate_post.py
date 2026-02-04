@@ -50,7 +50,7 @@ def extract_meta(markdown: str) -> dict:
     # Find a "Meta" section even if the model outputs numbering (e.g., "## 6. Meta").
     lines = markdown.splitlines()
     meta_start = None
-    heading_re = re.compile(r"^\s{0,3}#{1,6}\s+(?:\d+[\)\.\-:]?\s*)?meta\b", re.IGNORECASE)
+    heading_re = re.compile(r"^\s*(?:#{1,6}\s*)?(?:\d+[\)\.\-:]?\s*)?meta\b\s*$", re.IGNORECASE)
     for idx, line in enumerate(lines):
         if heading_re.match(line.strip()):
             meta_start = idx + 1
@@ -59,7 +59,7 @@ def extract_meta(markdown: str) -> dict:
     if meta_start is not None:
         for line in lines[meta_start:]:
             stripped = line.strip()
-            if re.match(r"^\s{0,3}#{1,6}\s+\S+", stripped):
+            if re.match(r"^\s*(?:#{1,6}\s*)?(?:\d+[\)\.\-:]?\s*)?(title|caption|hashtags|image prompt|cta|meta)\b", stripped, re.IGNORECASE):
                 break  # Next Markdown heading
             if ":" not in stripped:
                 continue
@@ -84,7 +84,10 @@ def extract_meta(markdown: str) -> dict:
 def extract_sections(markdown: str) -> dict:
     sections = {}
     lines = markdown.splitlines()
-    heading_re = re.compile(r"^\s{0,3}#{1,6}\s+(?:\d+[\)\.\-:]?\s*)?(.*?)\s*$")
+    heading_re = re.compile(
+        r"^\s*(?:#{1,6}\s*)?(?:\d+[\)\.\-:]?\s*)?(title|caption|hashtags|image prompt|cta|meta)\s*$",
+        re.IGNORECASE,
+    )
 
     current_key = None
     buffer = []
