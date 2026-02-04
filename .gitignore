@@ -1,1 +1,4 @@
 .env
+social-media/outputs/*
+social-media/history/*
+lib/__pycache__
