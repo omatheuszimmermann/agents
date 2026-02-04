@@ -3,6 +3,7 @@ import os
 import sys
 import datetime
 import json
+import re
 
 # Import llm_client.py from /agents/lib
 BASE_AGENTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -35,16 +36,48 @@ def read_file(path: str) -> str:
 
 def extract_meta(markdown: str) -> dict:
     meta = {}
-    if "## Meta" not in markdown:
-        return meta
+    allowed_keys = {"idea", "angle", "keywords", "format"}
 
-    meta_block = markdown.split("## Meta", 1)[1]
-    for line in meta_block.splitlines():
-        line = line.strip()
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        meta[key.strip()] = value.strip()
+    def normalize_key(raw_key: str) -> str:
+        key = raw_key.strip()
+        key = re.sub(r"^[-*+]\s*", "", key)  # Markdown list markers
+        key = key.replace("`", "")
+        key = key.replace("*", "")
+        key = key.strip().lower()
+        return key
+
+    # Find a "Meta" section even if the model outputs numbering (e.g., "## 6. Meta").
+    lines = markdown.splitlines()
+    meta_start = None
+    heading_re = re.compile(r"^\s{0,3}#{1,6}\s*(?:\d+[\)\.\-:]?\s*)?meta\b", re.IGNORECASE)
+    for idx, line in enumerate(lines):
+        if heading_re.match(line.strip()):
+            meta_start = idx + 1
+            break
+
+    if meta_start is not None:
+        for line in lines[meta_start:]:
+            stripped = line.strip()
+            if re.match(r"^\s{0,3}#{1,6}\s+\S+", stripped):
+                break  # Next Markdown heading
+            if ":" not in stripped:
+                continue
+            key, value = stripped.split(":", 1)
+            normalized = normalize_key(key)
+            if normalized in allowed_keys:
+                meta[normalized] = value.strip()
+
+    # Fallback: extract expected keys from the full response if section detection fails.
+    if not meta:
+        for line in lines:
+            stripped = line.strip()
+            if ":" not in stripped:
+                continue
+            key, value = stripped.split(":", 1)
+            normalized = normalize_key(key)
+            if normalized in allowed_keys:
+                meta[normalized] = value.strip()
+
     return meta
 
 def update_history(history_file: str, meta: dict):
@@ -56,6 +89,10 @@ def update_history(history_file: str, meta: dict):
                 history = json.load(f)
         except Exception:
             history = {"posts": []}
+    if not isinstance(history, dict):
+        history = {"posts": []}
+    if not isinstance(history.get("posts"), list):
+        history["posts"] = []
 
     history["posts"].append({
         "date": datetime.datetime.now().strftime("%Y-%m-%d"),
@@ -157,8 +194,7 @@ def main():
 
     # Update history.json with Meta section
     meta = extract_meta(content)
-    if meta:
-        update_history(history_file, meta)
+    update_history(history_file, meta)
         
     # Notify Discord (best-effort)
     notify_script = os.path.join(BASE_DIR, "scripts", "notify_discord.sh")
