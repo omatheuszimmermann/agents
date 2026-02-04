@@ -4,6 +4,7 @@ import sys
 import datetime
 import json
 import re
+import subprocess
 
 # Import llm_client.py from /agents/lib
 BASE_AGENTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -49,7 +50,7 @@ def extract_meta(markdown: str) -> dict:
     # Find a "Meta" section even if the model outputs numbering (e.g., "## 6. Meta").
     lines = markdown.splitlines()
     meta_start = None
-    heading_re = re.compile(r"^\s{0,3}#{1,6}\s*(?:\d+[\)\.\-:]?\s*)?meta\b", re.IGNORECASE)
+    heading_re = re.compile(r"^\s{0,3}#{1,6}\s+(?:\d+[\)\.\-:]?\s*)?meta\b", re.IGNORECASE)
     for idx, line in enumerate(lines):
         if heading_re.match(line.strip()):
             meta_start = idx + 1
@@ -80,7 +81,66 @@ def extract_meta(markdown: str) -> dict:
 
     return meta
 
-def update_history(history_file: str, meta: dict):
+def extract_sections(markdown: str) -> dict:
+    sections = {}
+    lines = markdown.splitlines()
+    heading_re = re.compile(r"^\s{0,3}#{1,6}\s+(?:\d+[\)\.\-:]?\s*)?(.*?)\s*$")
+
+    current_key = None
+    buffer = []
+
+    def normalize_heading(text: str) -> str:
+        t = text.strip().lower()
+        t = re.sub(r"[`*]+", "", t)
+        if t == "caption":
+            return "caption"
+        if t == "hashtags":
+            return "hashtags"
+        if t == "cta":
+            return "cta"
+        if t in {"image prompt", "image_prompt", "prompt"} or t.startswith("image prompt"):
+            return "image_prompt"
+        return ""
+
+    def flush():
+        nonlocal buffer, current_key
+        if current_key:
+            sections[current_key] = "\n".join(buffer).strip()
+        buffer = []
+
+    for raw_line in lines:
+        line = raw_line.rstrip("\n")
+        m = heading_re.match(line.strip())
+        if m:
+            found = normalize_heading(m.group(1))
+            if found:
+                flush()
+                current_key = found
+                continue
+            if current_key:
+                flush()
+                current_key = None
+            continue
+        if current_key:
+            buffer.append(line)
+
+    flush()
+    return sections
+
+def build_discord_messages(markdown: str, post_number: int) -> tuple[str, str]:
+    sections = extract_sections(markdown)
+    description = sections.get("caption", "").strip()
+    cta = sections.get("cta", "").strip()
+    hashtags = sections.get("hashtags", "").strip()
+    image_prompt = sections.get("image_prompt", "").strip()
+
+    body_parts = [part for part in [description, cta, hashtags] if part]
+    body = "\n\n".join(body_parts).strip()
+    first_message = f"#{post_number}\n\n{body}".strip() if body else f"#{post_number}"
+    prompt_message = f"#{post_number} Prompt:\n{image_prompt}".strip() if image_prompt else ""
+    return first_message, prompt_message
+
+def update_history(history_file: str, meta: dict) -> int:
     history = {"posts": []}
 
     if os.path.exists(history_file):
@@ -94,7 +154,17 @@ def update_history(history_file: str, meta: dict):
     if not isinstance(history.get("posts"), list):
         history["posts"] = []
 
+    max_post_number = 0
+    for post in history["posts"]:
+        if not isinstance(post, dict):
+            continue
+        number = post.get("post_number", 0)
+        if isinstance(number, int) and number > max_post_number:
+            max_post_number = number
+    post_number = max_post_number + 1
+
     history["posts"].append({
+        "post_number": post_number,
         "date": datetime.datetime.now().strftime("%Y-%m-%d"),
         "idea": meta.get("idea", ""),
         "angle": meta.get("angle", ""),
@@ -104,6 +174,7 @@ def update_history(history_file: str, meta: dict):
 
     with open(history_file, "w", encoding="utf-8") as f:
         json.dump(history, f, indent=2, ensure_ascii=False)
+    return post_number
 
 def main():
     if len(sys.argv) < 2:
@@ -194,13 +265,21 @@ def main():
 
     # Update history.json with Meta section
     meta = extract_meta(content)
-    update_history(history_file, meta)
+    post_number = update_history(history_file, meta)
         
     # Notify Discord (best-effort)
     notify_script = os.path.join(BASE_DIR, "scripts", "notify_discord.sh")
     if os.path.exists(notify_script):
-        message = f" Post gerado ({project}): {os.path.basename(out_file)}"
-        os.system(f'MSG_ARG="{message}" "{notify_script}" "{message}"')
+        first_message, prompt_message = build_discord_messages(content, post_number)
+        env = os.environ.copy()
+        try:
+            env["MSG_ARG"] = first_message
+            subprocess.run([notify_script, first_message], check=False, env=env)
+            if prompt_message:
+                env["MSG_ARG"] = prompt_message
+                subprocess.run([notify_script, prompt_message], check=False, env=env)
+        except Exception:
+            pass
 
     print(out_file)
 
