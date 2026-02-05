@@ -45,57 +45,65 @@ client.on("clientReady", () => {
 });
 
 client.on("messageCreate", async (msg) => {
-  console.log("MSG:", {
-    author: msg.author.username,
-    content: msg.content,
-    channelId: msg.channelId,
-    mentionsMe: msg.mentions.users.has(client.user.id),
-    }
-  )
-  if (msg.author.bot) return;
+  try {
+    if (msg.author.bot) return;
 
-  // só responde se for mencionado
-  const botId = client.user.id;
+    const botId = client.user.id;
+    const mentionPattern = new RegExp(`<@!?${botId}>`);
+    const mentioned =
+      msg.mentions?.users?.has(botId) ||
+      mentionPattern.test(msg.content);
 
-  const mentionPattern = new RegExp(`<@!?${botId}>`);
-  const mentioned = msg.mentions?.users?.has(botId) || mentionPattern.test(msg.content);
-  if (!mentioned) return;
+    // Só processa quando for mencionado
+    if (!mentioned) return;
 
-  const text = msg.content.replace(/<@!?(\d+)>/g, "").trim();
-  const parts = text.split(/\s+/).filter(Boolean);
+    // Remove menções do texto e normaliza
+    const text = msg.content.replace(/<@!?(\d+)>/g, "").trim();
+    const parts = text.split(/\s+/).filter(Boolean);
 
-  // formato: @MZ create secureapix
-  const cmd = (parts[0] || "").toLowerCase();
-  const project = (parts[1] || "").toLowerCase();
-
-  if (!cmd) {
-    await msg.reply("Uso: @MZ create <project>");
-    return;
-  }
-
-  if (cmd === "create") {
-    if (!project) {
-      await msg.reply("Uso: @MZ create <project>");
+    // Se mencionou e não escreveu nada
+    if (parts.length === 0) {
+      await msg.reply("Uso: `@MZ create <project>`");
       return;
     }
 
-    // mapeamento project -> job id (simples e explícito)
+    const cmd = (parts[0] || "").toLowerCase();
+
+    // Lista de comandos suportados
+    const help = "Comandos: `create <project>`";
+
+    if (cmd !== "create") {
+      await msg.reply(`❌ Comando não reconhecido. ${help}`);
+      return;
+    }
+
+    // Validação do parâmetro
+    const project = (parts[1] || "").toLowerCase();
+    if (!project) {
+      await msg.reply("❌ Falta o projeto. Uso: `@MZ create <project>`");
+      return;
+    }
+
+    // Mapeamento project -> job id
     const jobId = `socialmedia_${project}`;
 
-    await msg.reply(`⏳ Rodando agora: ${jobId}`);
+    await msg.reply(`⏳ Executando agora: \`${jobId}\``);
 
-    runForcedJob(jobId, async (err) => {
+    runForcedJob(jobId, async (err, stdout, stderr) => {
       if (err) {
-        await msg.reply(`❌ Falhou ao executar ${jobId}. Veja logs no servidor.`);
+        await msg.reply(`❌ Falhou ao executar \`${jobId}\`. Verifique os logs no servidor.`);
         return;
       }
-      await msg.reply(`✅ Executado: ${jobId}`);
+      await msg.reply(`✅ Concluído: \`${jobId}\``);
     });
-
-    return;
+  } catch (e) {
+    // Evita crash silencioso
+    try {
+      await msg.reply("❌ Erro interno ao processar o comando.");
+    } catch (_) {}
+    console.error("Handler error:", e);
   }
-
-  await msg.reply("Comandos: create");
 });
+
 
 client.login(TOKEN);
