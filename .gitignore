@@ -2,3 +2,6 @@
 social-media/outputs/*
 social-media/history/*
 lib/__pycache__
+_runner/logs/*
+_runner/jobs.json
+_runner/state/*

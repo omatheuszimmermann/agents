@@ -13,6 +13,8 @@ import json
 import urllib.request
 import urllib.error
 from typing import List, Dict, Optional
+import ssl
+import certifi
 
 
 class LLMClient:
@@ -50,7 +52,8 @@ class LLMClient:
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            ctx = ssl.create_default_context(cafile=certifi.where())
+            with urllib.request.urlopen(req, timeout=self.timeout, context=ctx) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", errors="replace")
