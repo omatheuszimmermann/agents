@@ -2,6 +2,7 @@
 import json
 import os
 import subprocess
+import sys
 from datetime import datetime, date
 
 BASE = "/Users/matheuszimmermannai/Documents/agents/_runner"
@@ -114,11 +115,67 @@ def run_job(job: dict):
     except Exception as e:
         log(f"FAIL {job_id}: exception={e} (will retry next day)")
 
+def run_job_forced(job: dict):
+    job_id = job["id"]
+    cwd = job["cwd"]
+    cmd = job["command"]
+    args = job.get("args", [])
+
+    st = load_json(state_path(job_id), {})
+
+    log(f"FORCE {job_id}: {cmd} {' '.join(args)} (cwd={cwd})")
+    try:
+        proc = subprocess.run(
+            [cmd, *args],
+            cwd=cwd,
+            text=True,
+            capture_output=True
+        )
+        out = proc.stdout.strip()
+        err = proc.stderr.strip()
+
+        if out:
+            log(f"OUT  {job_id}: {out}")
+        if err:
+            log(f"ERR  {job_id}: {err}")
+
+        if proc.returncode != 0:
+            log(f"FAIL {job_id}: exit={proc.returncode}")
+            return
+
+        # marca sucesso e registra horário
+        st["last_forced_at"] = datetime.now().isoformat(timespec="seconds")
+        st["last_success_at"] = datetime.now().isoformat(timespec="seconds")
+        save_json(state_path(job_id), st)
+        log(f"OK   {job_id} (forced)")
+
+    except Exception as e:
+        log(f"FAIL {job_id}: exception={e}")
+
+
 def main():
+    # Usage:
+    #   run_jobs.py                -> run all scheduled
+    #   run_jobs.py --force <id>   -> run one job immediately (ignore policy windows)
+    force_id = None
+    if len(sys.argv) >= 3 and sys.argv[1] == "--force":
+        force_id = sys.argv[2]
+
     cfg = load_json(JOBS_FILE, {"jobs": []})
     jobs = cfg.get("jobs", [])
     if not jobs:
         log("No jobs configured.")
+        return
+
+    if force_id:
+        found = False
+        for job in jobs:
+            if job.get("id") == force_id:
+                found = True
+                run_job_forced(job)
+                break
+        if not found:
+            log(f"FAIL unknown job id: {force_id}")
         return
 
     for job in jobs:
