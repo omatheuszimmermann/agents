@@ -6,3 +6,4 @@ _runner/logs/*
 _runner/jobs.json
 _runner/state/*
 _discord_cmd_bot/.env
+node_modules

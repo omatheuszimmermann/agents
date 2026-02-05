@@ -40,15 +40,25 @@ function runForcedJob(jobId, cb) {
   });
 }
 
-client.on("ready", () => {
+client.on("clientReady", () => {
   console.log(`✅ MZ Bot online as ${client.user.tag}`);
 });
 
 client.on("messageCreate", async (msg) => {
+  console.log("MSG:", {
+    author: msg.author.username,
+    content: msg.content,
+    channelId: msg.channelId,
+    mentionsMe: msg.mentions.users.has(client.user.id),
+    }
+  )
   if (msg.author.bot) return;
 
   // só responde se for mencionado
-  const mentioned = msg.mentions.users.has(client.user.id);
+  const botId = client.user.id;
+
+  const mentionPattern = new RegExp(`<@!?${botId}>`);
+  const mentioned = msg.mentions?.users?.has(botId) || mentionPattern.test(msg.content);
   if (!mentioned) return;
 
   const text = msg.content.replace(/<@!?(\d+)>/g, "").trim();
