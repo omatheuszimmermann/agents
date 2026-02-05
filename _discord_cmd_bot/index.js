@@ -41,7 +41,7 @@ function runForcedJob(jobId, cb) {
 }
 
 client.on("ready", () => {
-  console.log(`✅ MoltCmd online as ${client.user.tag}`);
+  console.log(`✅ MZ Bot online as ${client.user.tag}`);
 });
 
 client.on("messageCreate", async (msg) => {
@@ -54,18 +54,18 @@ client.on("messageCreate", async (msg) => {
   const text = msg.content.replace(/<@!?(\d+)>/g, "").trim();
   const parts = text.split(/\s+/).filter(Boolean);
 
-  // formato: @MoltCmd create secureapix
+  // formato: @MZ create secureapix
   const cmd = (parts[0] || "").toLowerCase();
   const project = (parts[1] || "").toLowerCase();
 
   if (!cmd) {
-    await msg.reply("Uso: @MoltCmd create <project>");
+    await msg.reply("Uso: @MZ create <project>");
     return;
   }
 
   if (cmd === "create") {
     if (!project) {
-      await msg.reply("Uso: @MoltCmd create <project>");
+      await msg.reply("Uso: @MZ create <project>");
       return;
     }
 
