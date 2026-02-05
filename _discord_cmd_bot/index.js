@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { Client, GatewayIntentBits } = require("discord.js");
 const { execFile } = require("child_process");
+const { channel } = require("diagnostics_channel");
 
 function loadEnv(envPath) {
   if (!fs.existsSync(envPath)) return;
@@ -45,6 +46,11 @@ client.on("clientReady", () => {
 });
 
 client.on("messageCreate", async (msg) => {
+  console.log("Message:", {
+    channelId: msg.channelId,
+    content: msg.content,
+  });
+  
   try {
     if (msg.author.bot) return;
 
