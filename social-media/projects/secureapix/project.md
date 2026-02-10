@@ -46,8 +46,7 @@ en
 
 ## Output format
 Return Markdown with:
-- Title
-- Caption
+- Description
+- CTA
 - Hashtags (10-20)
 - Image prompt
-- CTA
