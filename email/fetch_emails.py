@@ -2,8 +2,8 @@
 import os
 import sys
 import imaplib
-import email
 import argparse
+import importlib
 from email.header import decode_header
 from typing import List, Tuple
 
@@ -43,6 +43,22 @@ def _imap_connect(host: str, port: int, secure: bool) -> imaplib.IMAP4:
     if secure:
         return imaplib.IMAP4_SSL(host, port)
     return imaplib.IMAP4(host, port)
+
+def _import_stdlib_email():
+    current_dir = os.path.abspath(os.path.dirname(__file__))
+    original_sys_path = list(sys.path)
+    try:
+        filtered = []
+        for p in sys.path:
+            if p in ("", "."):
+                continue
+            if os.path.abspath(p) == current_dir:
+                continue
+            filtered.append(p)
+        sys.path = filtered
+        return importlib.import_module("email")
+    finally:
+        sys.path = original_sys_path
 
 
 def _to_imap_date(iso_date: str) -> str:
@@ -113,12 +129,14 @@ def fetch_email_headers(limit: int, status: str, since: str, before: str) -> Lis
         ids = ids[-limit:]
 
     results: List[Tuple[str, str, str]] = []
+    email_module = _import_stdlib_email()
+
     for msg_id in reversed(ids):
         status, msg_data = mail.fetch(msg_id, "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
         if status != "OK" or not msg_data:
             continue
         msg_bytes = msg_data[0][1]
-        msg = email.message_from_bytes(msg_bytes)
+        msg = email_module.message_from_bytes(msg_bytes)
         subject = _decode_header(msg.get("Subject", ""))
         sender = _decode_header(msg.get("From", ""))
         date = _decode_header(msg.get("Date", ""))

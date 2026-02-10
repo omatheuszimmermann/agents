@@ -1,10 +1,10 @@
 # Email Agent CLI
 
-## List emails (email.py)
+## List emails (fetch_emails.py)
 
 Usage:
 ```bash
-python3 email.py <project> [limit] [--status all|read|unread] [--since YYYY-MM-DD] [--before YYYY-MM-DD]
+python3 fetch_emails.py <project> [limit] [--status all|read|unread] [--since YYYY-MM-DD] [--before YYYY-MM-DD]
 ```
 
 Parameters:
@@ -16,9 +16,9 @@ Parameters:
 
 Examples:
 ```bash
-python3 email.py secureapix
-python3 email.py secureapix 20 --status unread
-python3 email.py secureapix --since 2026-02-01 --before 2026-02-10
+python3 fetch_emails.py secureapix
+python3 fetch_emails.py secureapix 20 --status unread
+python3 fetch_emails.py secureapix --since 2026-02-01 --before 2026-02-10
 ```
 
 ## Agent (agent.py)
@@ -29,7 +29,7 @@ python3 agent.py <project> [limit] [--status all|read|unread] [--since YYYY-MM-D
 ```
 
 Parameters:
-- Same as `email.py`.
+- Same as `fetch_emails.py`.
 
 Outputs:
 - JSON file in `email/outputs/` with classified results.

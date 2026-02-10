@@ -33,9 +33,9 @@ def load_env_file(path: str) -> None:
 
 
 def run_email_fetch(project: str, limit: int, status: str, since: str, before: str) -> List[str]:
-    email_script = os.path.join(BASE_DIR, "email.py")
+    email_script = os.path.join(BASE_DIR, "fetch_emails.py")
     if not os.path.exists(email_script):
-        raise RuntimeError(f"email.py not found at {email_script}")
+        raise RuntimeError(f"fetch_emails.py not found at {email_script}")
 
     cmd = [sys.executable, email_script, project, str(limit)]
     if status:
@@ -48,7 +48,7 @@ def run_email_fetch(project: str, limit: int, status: str, since: str, before: s
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         err = result.stderr.strip() or "Unknown error"
-        raise RuntimeError(f"email.py failed: {err}")
+        raise RuntimeError(f"fetch_emails.py failed: {err}")
 
     lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
     if lines and lines[0].lower().startswith("no emails found"):
