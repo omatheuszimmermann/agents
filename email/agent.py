@@ -5,7 +5,6 @@ import argparse
 import subprocess
 import json
 import datetime
-import urllib.request
 from typing import List, Dict
 
 # Import llm_client.py from /agents/lib
@@ -112,16 +111,13 @@ def classify_email(llm, email_item: Dict[str, str]) -> str:
     return label
 
 
-def send_discord_message(webhook_url: str, message: str) -> None:
-    payload = json.dumps({"content": message}).encode("utf-8")
-    req = urllib.request.Request(
-        url=webhook_url,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        _ = resp.read()
+def send_discord_message(message: str) -> None:
+    notify_script = os.path.join(BASE_DIR, "scripts", "notify_discord.sh")
+    if not os.path.exists(notify_script):
+        raise RuntimeError(f"notify_discord.sh not found at {notify_script}")
+    env = os.environ.copy()
+    env["MSG_ARG"] = message
+    subprocess.run([notify_script, message], check=True, env=env)
 
 
 def main() -> None:
@@ -143,10 +139,6 @@ def main() -> None:
     load_env_file(os.path.join(BASE_DIR, ".env"))
 
     llm = load_llm_from_env(prefix="LLM")
-    discord_webhook = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
-    if not discord_webhook:
-        print("DISCORD_WEBHOOK_URL is not set in email/.env", file=sys.stderr)
-        sys.exit(1)
 
     os.makedirs(OUTPUTS_DIR, exist_ok=True)
     os.makedirs(TMP_DIR, exist_ok=True)
@@ -194,7 +186,7 @@ def main() -> None:
                 f"Date: {result['date']}"
             )
             try:
-                send_discord_message(discord_webhook, message)
+                send_discord_message(message)
             except Exception as exc:
                 print(f"Discord notify failed: {exc}", file=sys.stderr)
 
