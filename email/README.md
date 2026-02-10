@@ -33,7 +33,8 @@ Parameters:
 
 Outputs:
 - JSON file in `email/outputs/` with classified results.
-- Sends a Discord message per classified email using `DISCORD_WEBHOOK_URL` from `email/.env`.
+- Sends a Discord message per classified email using the global notifier in `discord/notify_discord.sh`.
+- Requires `CHANNEL_ID` in `email/.env` and `DISCORD_TOKEN` (or `DISCORD_WEBHOOK_URL`) in `discord/.env`.
 
 Examples:
 ```bash

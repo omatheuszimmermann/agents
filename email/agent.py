@@ -112,12 +112,15 @@ def classify_email(llm, email_item: Dict[str, str]) -> str:
 
 
 def send_discord_message(message: str) -> None:
-    notify_script = os.path.join(BASE_DIR, "scripts", "notify_discord.sh")
+    notify_script = os.path.join(BASE_AGENTS_DIR, "discord", "notify_discord.sh")
     if not os.path.exists(notify_script):
         raise RuntimeError(f"notify_discord.sh not found at {notify_script}")
+    channel_id = os.getenv("CHANNEL_ID", "").strip()
+    if not channel_id:
+        raise RuntimeError("CHANNEL_ID is not set in email/.env")
     env = os.environ.copy()
     env["MSG_ARG"] = message
-    subprocess.run([notify_script, message], check=True, env=env)
+    subprocess.run([notify_script, channel_id, message], check=True, env=env)
 
 
 def main() -> None:
