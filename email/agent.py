@@ -29,7 +29,10 @@ def load_env_file(path: str) -> None:
             if not line or line.startswith("#") or "=" not in line:
                 continue
             k, v = line.split("=", 1)
-            os.environ.setdefault(k.strip(), v.strip())
+            val = v.strip()
+            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                val = val[1:-1]
+            os.environ[k.strip()] = val
 
 
 def run_email_fetch(project: str, limit: int, status: str, since: str, before: str) -> List[str]:
@@ -59,7 +62,7 @@ def run_email_fetch(project: str, limit: int, status: str, since: str, before: s
 def parse_email_lines(lines: List[str]) -> List[Dict[str, str]]:
     parsed = []
     for line in lines:
-        # Expected: "1. date | sender | subject"
+        # Expected: "1. date | sender | subject | message_id"
         if ". " in line:
             _, rest = line.split(". ", 1)
         else:
@@ -67,8 +70,16 @@ def parse_email_lines(lines: List[str]) -> List[Dict[str, str]]:
         parts = [p.strip() for p in rest.split("|")]
         if len(parts) < 3:
             continue
-        date, sender, subject = parts[0], parts[1], "|".join(parts[2:]).strip()
-        parsed.append({"date": date, "sender": sender, "subject": subject})
+        date = parts[0]
+        sender = parts[1]
+        subject = parts[2] if len(parts) >= 3 else ""
+        message_id = parts[3] if len(parts) >= 4 else ""
+        parsed.append({
+            "date": date,
+            "sender": sender,
+            "subject": subject,
+            "message_id": message_id,
+        })
     return parsed
 
 
@@ -143,6 +154,7 @@ def main() -> None:
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     tmp_file = os.path.join(TMP_DIR, f"{args.project}_pending_{timestamp}.txt")
     output_file = os.path.join(OUTPUTS_DIR, f"{args.project}_classified_{timestamp}.json")
+    seen_file = os.path.join(OUTPUTS_DIR, f"{args.project}_seen_ids.json")
 
     lines = run_email_fetch(args.project, args.limit, args.status, args.since, args.before)
     with open(tmp_file, "w", encoding="utf-8") as f:
@@ -150,13 +162,28 @@ def main() -> None:
 
     try:
         emails = parse_email_lines(lines)
+        seen_ids = set()
+        if os.path.exists(seen_file):
+            try:
+                with open(seen_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        seen_ids = set(str(x) for x in data if x)
+            except Exception:
+                seen_ids = set()
+
         results = []
         for item in emails:
+            message_id = item.get("message_id", "")
+            if message_id and message_id in seen_ids:
+                continue
+
             label = classify_email(llm, item)
             result = {
                 "date": item.get("date", ""),
                 "sender": item.get("sender", ""),
                 "subject": item.get("subject", ""),
+                "message_id": message_id,
                 "type": label,
             }
             results.append(result)
@@ -171,8 +198,14 @@ def main() -> None:
             except Exception as exc:
                 print(f"Discord notify failed: {exc}", file=sys.stderr)
 
+            if message_id:
+                seen_ids.add(message_id)
+
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump({"project": args.project, "results": results}, f, indent=2, ensure_ascii=False)
+
+        with open(seen_file, "w", encoding="utf-8") as f:
+            json.dump(sorted(seen_ids), f, indent=2, ensure_ascii=False)
 
         print(output_file)
     finally:

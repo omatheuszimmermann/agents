@@ -20,7 +20,10 @@ def load_env_file(path: str) -> None:
             if not line or line.startswith("#") or "=" not in line:
                 continue
             k, v = line.split("=", 1)
-            os.environ.setdefault(k.strip(), v.strip())
+            val = v.strip()
+            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                val = val[1:-1]
+            os.environ[k.strip()] = val
 
 
 def _decode_header(value: str) -> str:
@@ -132,7 +135,10 @@ def fetch_email_headers(limit: int, status: str, since: str, before: str) -> Lis
     email_module = _import_stdlib_email()
 
     for msg_id in reversed(ids):
-        status, msg_data = mail.fetch(msg_id, "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+        status, msg_data = mail.fetch(
+            msg_id,
+            "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)])",
+        )
         if status != "OK" or not msg_data:
             continue
         msg_bytes = msg_data[0][1]
@@ -140,7 +146,8 @@ def fetch_email_headers(limit: int, status: str, since: str, before: str) -> Lis
         subject = _decode_header(msg.get("Subject", ""))
         sender = _decode_header(msg.get("From", ""))
         date = _decode_header(msg.get("Date", ""))
-        results.append((date, sender, subject))
+        message_id = _decode_header(msg.get("Message-ID", ""))
+        results.append((date, sender, subject, message_id))
 
     mail.logout()
     return results
@@ -175,8 +182,8 @@ def main() -> None:
         print("No emails found.")
         return
 
-    for idx, (date, sender, subject) in enumerate(headers, start=1):
-        print(f"{idx}. {date} | {sender} | {subject}")
+    for idx, (date, sender, subject, message_id) in enumerate(headers, start=1):
+        print(f"{idx}. {date} | {sender} | {subject} | {message_id}")
 
 
 if __name__ == "__main__":
