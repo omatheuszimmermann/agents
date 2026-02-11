@@ -6,9 +6,9 @@ import json
 import re
 import subprocess
 
-# Import llm_client.py from shared/python
+# Import llm_client.py from shared/python/lib
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python"))
+sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
 from llm_client import load_llm_from_env  # noqa: E402
 
