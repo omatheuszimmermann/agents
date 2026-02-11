@@ -46,20 +46,24 @@ class NotionClient:
         self.database_id = database_id
         self.base_url = "https://api.notion.com/v1"
 
-    def query_tasks(self, status: str, limit: int = 1) -> List[Dict[str, Any]]:
+    def query_database(self, filter_obj: Dict[str, Any], limit: int = 1) -> List[Dict[str, Any]]:
         url = f"{self.base_url}/databases/{self.database_id}/query"
         payload = {
             "page_size": max(1, min(limit, 100)),
-            "filter": {
-                "property": "Status",
-                "select": {"equals": status},
-            },
+            "filter": filter_obj,
             "sorts": [
                 {"timestamp": "created_time", "direction": "ascending"}
             ],
         }
         data = _request(self.api_key, "POST", url, payload)
         return data.get("results", [])
+
+    def query_tasks(self, status: str, limit: int = 1) -> List[Dict[str, Any]]:
+        filt = {
+            "property": "Status",
+            "select": {"equals": status},
+        }
+        return self.query_database(filter_obj=filt, limit=limit)
 
     def update_page(self, page_id: str, properties: Dict[str, Any]) -> None:
         url = f"{self.base_url}/pages/{page_id}"

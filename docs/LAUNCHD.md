@@ -23,6 +23,8 @@ launchctl load ~/Library/LaunchAgents/<arquivo>.plist
   - Verifica emails não lidos do projeto `secureapix` diariamente.
 - `runner/launchd/ai.agents.notion.worker.plist`
   - Worker que consome tasks do Notion periodicamente.
+- `runner/launchd/ai.agents.notion.scheduler.plist`
+  - Scheduler que cria tasks recorrentes no Notion.
 
 ## Observacoes
 

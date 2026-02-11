@@ -7,14 +7,14 @@
 	<key>ProgramArguments</key>
 	<array>
 		<string>/usr/bin/python3</string>
-		<string>/Users/matheuszimmermannai/Documents/agents/runner/run_jobs.py</string>
+		<string>/Users/matheuszimmermannai/agents/runner/run_jobs.py</string>
 	</array>
 	<key>RunAtLoad</key>
 	<false/>
 	<key>StandardOutPath</key>
-	<string>/Users/matheuszimmermannai/Documents/agents/runner/logs/launchd.out</string>
+	<string>/Users/matheuszimmermannai/agents/runner/logs/launchd.out</string>
 	<key>StandardErrorPath</key>
-	<string>/Users/matheuszimmermannai/Documents/agents/runner/logs/launchd.err</string>
+	<string>/Users/matheuszimmermannai/agents/runner/logs/launchd.err</string>
 	<key>StartCalendarInterval</key>
 	<array>
 		<dict>
