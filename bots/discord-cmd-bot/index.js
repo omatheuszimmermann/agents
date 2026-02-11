@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 const { Client, GatewayIntentBits } = require("discord.js");
-const { execFile } = require("child_process");
 
 function loadEnv(envPath) {
   if (!fs.existsSync(envPath)) return;
@@ -33,15 +32,7 @@ const client = new Client({
   ],
 });
 
-function runForcedJob(jobId, cb) {
-  const py = "/usr/bin/python3";
-  const runner = path.resolve(__dirname, "..", "..", "runner", "run_jobs.py");
-  execFile(py, [runner, "--force", jobId], { timeout: 15 * 60 * 1000 }, (err, stdout, stderr) => {
-    cb(err, stdout, stderr);
-  });
-}
-
-client.on("clientReady", () => {
+client.once("ready", () => {
   console.log(`✅ MZ Bot online as ${client.user.tag}`);
 });
 
