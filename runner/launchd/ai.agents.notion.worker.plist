@@ -8,7 +8,7 @@
     <key>ProgramArguments</key>
     <array>
       <string>/usr/bin/python3</string>
-      <string>/Users/matheuszimmermannai/agents/runner/notion_worker.py</string>
+      <string>/Users/matheuszimmermannai/Documents/agents/runner/notion_worker.py</string>
     </array>
 
     <!-- roda a cada 30 minutos -->
@@ -19,8 +19,8 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/matheuszimmermannai/agents/runner/logs/notion.worker.out</string>
+    <string>/Users/matheuszimmermannai/Documents/agents/runner/logs/notion.worker.out</string>
     <key>StandardErrorPath</key>
-    <string>/Users/matheuszimmermannai/agents/runner/logs/notion.worker.err</string>
+    <string>/Users/matheuszimmermannai/Documents/agents/runner/logs/notion.worker.err</string>
   </dict>
 </plist>
