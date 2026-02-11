@@ -121,7 +121,16 @@ def send_discord_message(message: str) -> None:
         raise RuntimeError("CHANNEL_ID is not set in agents/email-triage/.env")
     env = os.environ.copy()
     env["MSG_ARG"] = message
-    subprocess.run([notify_script, channel_id, message], check=True, env=env)
+    result = subprocess.run(
+        [notify_script, channel_id, message],
+        check=False,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        err = (result.stderr or result.stdout or "").strip()
+        raise RuntimeError(f"Discord notify failed: {err or 'unknown error'}")
 
 
 def main() -> None:
