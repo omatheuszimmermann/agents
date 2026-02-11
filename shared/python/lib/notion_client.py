@@ -55,7 +55,7 @@ class NotionClient:
                 "select": {"equals": status},
             },
             "sorts": [
-                {"property": "Created time", "direction": "ascending"}
+                {"timestamp": "created_time", "direction": "ascending"}
             ],
         }
         data = _request(self.api_key, "POST", url, payload)
