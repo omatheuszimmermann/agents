@@ -16,6 +16,7 @@ function loadEnv(envPath) {
 
 const ENV_PATH = path.join(__dirname, ".env");
 loadEnv(ENV_PATH);
+loadEnv(path.resolve(__dirname, "..", "..", "integrations", "notion", ".env"));
 
 const TOKEN = process.env.DISCORD_TOKEN;
 
@@ -99,17 +100,60 @@ client.on("messageCreate", async (msg) => {
       return;
     }
 
-    const jobId = `${domain}_${project}_${action}`;
+    const notionToken = process.env.NOTION_API_KEY;
+    const notionDbId = process.env.NOTION_DB_ID;
+    if (!notionToken || !notionDbId) {
+      await msg.reply("❌ Notion não configurado (NOTION_API_KEY / NOTION_DB_ID).");
+      return;
+    }
 
-    await msg.reply(`⏳ Executando agora: \`${jobId}\``);
+    const typeMap = {
+      posts: { create: "posts_create" },
+      email: { last: "email_check" }
+    };
+    const taskType = typeMap?.[domain]?.[action];
+    if (!taskType) {
+      await msg.reply(`❌ Ação não reconhecida para ${domain}. ${help}`);
+      return;
+    }
 
-    runForcedJob(jobId, async (err, stdout, stderr) => {
-      if (err) {
-        await msg.reply(`❌ Falhou ao executar \`${jobId}\`. Verifique os logs no servidor.`);
+    const name = `${domain} ${action} ${project}`;
+
+    await msg.reply(`⏳ Task criada no Notion: \`${name}\``);
+
+    try {
+      const payload = {
+        parent: { database_id: notionDbId },
+        properties: {
+          Name: { title: [{ text: { content: name } }] },
+          Status: { select: { name: "queued" } },
+          Type: { select: { name: taskType } },
+          Project: { select: { name: project } },
+          RequestedBy: { select: { name: "discord" } },
+        }
+      };
+
+      const res = await fetch("https://api.notion.com/v1/pages", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${notionToken}`,
+          "Content-Type": "application/json",
+          "Notion-Version": "2022-06-28",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        await msg.reply(`❌ Falha ao criar task no Notion. ${errText}`);
         return;
       }
-      await msg.reply(`✅ Concluído: \`${jobId}\``);
-    });
+
+      await msg.reply(`✅ Task enfileirada: \`${taskType}\` (${project})`);
+    } catch (err) {
+      await msg.reply("❌ Erro ao criar task no Notion.");
+      console.error(err);
+    }
   } catch (e) {
     // Evita crash silencioso
     try {
