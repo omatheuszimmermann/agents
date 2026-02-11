@@ -8,7 +8,7 @@
     <key>ProgramArguments</key>
     <array>
       <string>/usr/bin/python3</string>
-      <string>/Users/matheuszimmermann/Documents/Projects/agents/agents/email-triage/scripts/agent.py</string>
+      <string>/Users/matheuszimmermannai/Documents/Projects/agents/agents/email-triage/scripts/agent.py</string>
       <string>secureapix</string>
       <string>10</string>
       <string>--status</string>
@@ -27,8 +27,8 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/matheuszimmermann/Documents/Projects/agents/runner/logs/email.secureapix.out</string>
+    <string>/Users/matheuszimmermannai/Documents/Projects/agents/runner/logs/email.secureapix.out</string>
     <key>StandardErrorPath</key>
-    <string>/Users/matheuszimmermann/Documents/Projects/agents/runner/logs/email.secureapix.err</string>
+    <string>/Users/matheuszimmermannai/Documents/Projects/agents/runner/logs/email.secureapix.err</string>
   </dict>
 </plist>

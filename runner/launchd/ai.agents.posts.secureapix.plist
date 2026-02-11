@@ -8,7 +8,7 @@
     <key>ProgramArguments</key>
     <array>
       <string>/usr/bin/python3</string>
-      <string>/Users/matheuszimmermann/Documents/Projects/agents/runner/run_jobs.py</string>
+      <string>/Users/matheuszimmermannai/Documents/Projects/agents/runner/run_jobs.py</string>
     </array>
 
     <!-- roda todo dia às 09:00 -->
@@ -23,8 +23,8 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/matheuszimmermann/Documents/Projects/agents/runner/logs/launchd.out</string>
+    <string>/Users/matheuszimmermannai/Documents/Projects/agents/runner/logs/launchd.out</string>
     <key>StandardErrorPath</key>
-    <string>/Users/matheuszimmermann/Documents/Projects/agents/runner/logs/launchd.err</string>
+    <string>/Users/matheuszimmermannai/Documents/Projects/agents/runner/logs/launchd.err</string>
   </dict>
 </plist>
