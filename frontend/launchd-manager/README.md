@@ -1,6 +1,6 @@
-# Jobs (launchd)
+# Launchd Manager
 
-Esta pasta e o controle dos jobs do macOS (launchd) usando LaunchAgents.
+Esta pasta contem a lib e ferramentas para controle dos jobs do macOS (launchd) usando LaunchAgents.
 
 ## Uso rapido
 
@@ -39,6 +39,14 @@ python3 frontend/launchd-manager/jobctl.py --install runner/launchd/<arquivo>.pl
 ```bash
 python3 frontend/launchd-manager/jobctl.py --uninstall <label-ou-arquivo>
 ```
+
+## Servidor HTTP (modo live)
+
+```bash
+python3 frontend/launchd-manager/server.py
+```
+
+Depois acesse a UI em `http://localhost:8787`.
 
 ## Como funciona
 

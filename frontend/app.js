@@ -74,7 +74,8 @@ const api = {
     if (state.mode === "live") {
       const res = await fetch("/api/launchd/jobs");
       if (!res.ok) {
-        throw new Error("Falha ao listar jobs");
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload.error || "Falha ao listar jobs");
       }
       return res.json();
     }
@@ -104,7 +105,10 @@ const api = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(job)
       });
-      if (!res.ok) throw new Error("Falha ao criar job");
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload.error || "Falha ao criar job");
+      }
       return res.json();
     }
     const jobs = await api.list();
@@ -119,7 +123,10 @@ const api = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates)
       });
-      if (!res.ok) throw new Error("Falha ao atualizar job");
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload.error || "Falha ao atualizar job");
+      }
       return res.json();
     }
     const jobs = await api.list();
@@ -131,7 +138,11 @@ const api = {
   },
   async remove(jobId) {
     if (state.mode === "live") {
-      await fetch(`/api/launchd/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE" });
+      const res = await fetch(`/api/launchd/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE" });
+      if (!res.ok && res.status !== 204) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload.error || "Falha ao remover job");
+      }
       return;
     }
     const jobs = await api.list();
@@ -232,10 +243,16 @@ function applyFilters() {
 }
 
 async function refresh() {
-  state.jobs = await api.list();
-  applyFilters();
-  const selected = state.jobs.find((job) => job.id === state.selectedId);
-  renderDetail(selected || null);
+  try {
+    state.jobs = await api.list();
+    applyFilters();
+    const selected = state.jobs.find((job) => job.id === state.selectedId);
+    renderDetail(selected || null);
+  } catch (error) {
+    console.error(error);
+    elements.detailStatus.textContent = "Erro";
+    elements.detailBody.innerHTML = "<p class=\\\"muted\\\">Falha ao buscar dados reais.</p>";
+  }
 }
 
 function selectJob(jobId) {
@@ -283,7 +300,12 @@ async function confirmDelete(jobId) {
   if (!job) return;
   const confirmed = window.confirm(`Excluir ${job.label}?`);
   if (!confirmed) return;
-  await api.remove(jobId);
+  try {
+    await api.remove(jobId);
+  } catch (error) {
+    alert(error?.message || "Falha ao remover job.");
+    return;
+  }
   if (state.selectedId === jobId) {
     state.selectedId = null;
     renderDetail(null);
@@ -314,8 +336,12 @@ function jobFromForm() {
 function setupMode() {
   const params = new URLSearchParams(window.location.search);
   const mode = params.get("mode");
-  if (mode === "live") {
+  if (mode) {
+    state.mode = mode;
+  } else if (window.location.protocol.startsWith("http")) {
     state.mode = "live";
+  }
+  if (state.mode === "live") {
     elements.modeDot.style.background = "#00b386";
     elements.modeDot.style.boxShadow = "0 0 12px rgba(0, 179, 134, 0.7)";
   }
@@ -335,15 +361,20 @@ async function handleSubmit(event) {
     return;
   }
 
-  if (state.editingId) {
-    await api.update(state.editingId, job);
-  } else {
-    const exists = state.jobs.some((item) => item.id === job.id);
-    if (exists) {
-      alert("Label ja existe.");
-      return;
+  try {
+    if (state.editingId) {
+      await api.update(state.editingId, job);
+    } else {
+      const exists = state.jobs.some((item) => item.id === job.id);
+      if (exists) {
+        alert("Label ja existe.");
+        return;
+      }
+      await api.create(job);
     }
-    await api.create(job);
+  } catch (error) {
+    alert(error?.message || "Falha ao salvar job.");
+    return;
   }
 
   resetForm();

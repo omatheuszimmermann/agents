@@ -88,12 +88,10 @@ p {
   gap: 28px;
 }
 
-.hero {
+.topbar {
   display: flex;
-  gap: 32px;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 32px 36px;
+  justify-content: flex-end;
+  padding: 18px 24px;
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
@@ -102,24 +100,7 @@ p {
   animation: fadeUp 0.6s ease;
 }
 
-.eyebrow {
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-size: 0.72rem;
-  color: var(--accent-2);
-  margin-bottom: 12px;
-  font-weight: 600;
-}
-
-.subtitle {
-  color: var(--muted);
-  max-width: 480px;
-  margin-top: 12px;
-  font-size: 1rem;
-  line-height: 1.5;
-}
-
-.hero-actions {
+.topbar-actions {
   display: flex;
   gap: 12px;
 }
@@ -380,16 +361,11 @@ label.checkbox {
 }
 
 @media (max-width: 860px) {
-  .hero {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .hero-actions {
+  .topbar-actions {
     width: 100%;
   }
 
-  .hero-actions .btn {
+  .topbar-actions .btn {
     flex: 1;
   }
 }

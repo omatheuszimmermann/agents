@@ -4,17 +4,25 @@ Interface visual para listar, editar, instalar e remover jobs do launchd.
 
 ## Como usar
 
-Abra `frontend/index.html` no navegador.
+- Modo local (mock): abra `frontend/index.html` no navegador.
+- Modo live (dados reais): rode o servidor abaixo e abra a URL.
+
+```bash
+python3 frontend/launchd-manager/server.py
+```
+
+Acesse `http://localhost:8787`.
 
 ## Modos
 
 - `mock`: usa dados locais (localStorage) para demonstracao.
-- `live`: usa endpoints HTTP quando existe um backend.
+- `live`: usa endpoints HTTP reais (launchctl/plists).
 
-Para ativar o modo live:
+Para forcar um modo:
 
 ```
 frontend/index.html?mode=live
+frontend/index.html?mode=mock
 ```
 
 ## Endpoints esperados (modo live)
@@ -24,4 +32,4 @@ frontend/index.html?mode=live
 - `PATCH /api/launchd/jobs/:id`
 - `DELETE /api/launchd/jobs/:id`
 
-As rotas devem acionar `launchctl` no macOS e atualizar os plists reais.
+As rotas acionam `launchctl` no macOS e atualizam os plists reais.

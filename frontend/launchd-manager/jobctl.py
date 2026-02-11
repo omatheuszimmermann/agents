@@ -6,9 +6,9 @@ import shlex
 import shutil
 import subprocess
 import sys
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 TEMPLATES_DIR = os.path.join(REPO_ROOT, "runner", "launchd")
 LAUNCH_AGENTS_DIR = os.path.expanduser("~/Library/LaunchAgents")
 
@@ -65,7 +65,7 @@ def launchctl_labels() -> List[str]:
     return labels
 
 
-def format_schedule(plist: Dict) -> str:
+def parse_schedule(plist: Dict) -> Tuple[str, str]:
     if "StartCalendarInterval" in plist:
         sci = plist["StartCalendarInterval"]
         if isinstance(sci, list):
@@ -76,20 +76,33 @@ def format_schedule(plist: Dict) -> str:
                 if h is not None and m is not None:
                     times.append(f"{int(h):02d}:{int(m):02d}")
             if times:
-                return "calendar: " + ", ".join(times)
-            return "calendar: custom"
+                return "calendar", ", ".join(times)
+            return "calendar", ""
         if isinstance(sci, dict):
             h = sci.get("Hour")
             m = sci.get("Minute")
             if h is not None and m is not None:
-                return f"calendar: {int(h):02d}:{int(m):02d}"
-            return "calendar: custom"
+                return "calendar", f"{int(h):02d}:{int(m):02d}"
+            return "calendar", ""
     if "StartInterval" in plist:
         try:
             seconds = int(plist["StartInterval"])
-            return f"interval: {seconds}s"
+            return "interval", str(seconds)
         except Exception:
-            return "interval: custom"
+            return "interval", ""
+    return "none", ""
+
+
+def format_schedule(plist: Dict) -> str:
+    schedule_type, schedule_value = parse_schedule(plist)
+    if schedule_type == "calendar":
+        if schedule_value:
+            return f"calendar: {schedule_value}"
+        return "calendar: custom"
+    if schedule_type == "interval":
+        if schedule_value:
+            return f"interval: {schedule_value}s"
+        return "interval: custom"
     return "no schedule"
 
 
@@ -99,28 +112,65 @@ def bool_str(value: Optional[bool]) -> str:
     return "yes" if value else "no"
 
 
+def program_args_to_text(args) -> str:
+    if isinstance(args, list):
+        return shlex.join([str(item) for item in args])
+    if isinstance(args, str):
+        return args
+    return ""
+
+
+def parse_program_args(text: str) -> List[str]:
+    return shlex.split(text) if text else []
+
+
+def build_job_entry(plist_path: str, loaded_labels: Optional[set] = None) -> Dict:
+    filename = os.path.basename(plist_path)
+    try:
+        data = load_plist(plist_path)
+    except Exception:
+        data = {}
+
+    label = data.get("Label", os.path.splitext(filename)[0])
+    schedule_type, schedule_value = parse_schedule(data)
+    run_at_load = data.get("RunAtLoad")
+    keep_alive = data.get("KeepAlive")
+
+    entry = {
+        "id": label,
+        "label": label,
+        "filename": filename,
+        "path": plist_path,
+        "loaded": label in loaded_labels if loaded_labels is not None else False,
+        "scheduleType": schedule_type,
+        "scheduleValue": schedule_value,
+        "schedule": format_schedule(data),
+        "runAtLoad": run_at_load,
+        "keepAlive": bool(keep_alive) if keep_alive is not None else False,
+        "programArgs": program_args_to_text(data.get("ProgramArguments", [])),
+        "stdoutPath": data.get("StandardOutPath", ""),
+        "stderrPath": data.get("StandardErrorPath", ""),
+        "has_template": os.path.isfile(os.path.join(TEMPLATES_DIR, filename)),
+    }
+    return entry
+
+
 def build_installed_jobs() -> List[Dict]:
     installed = []
     loaded_labels = set(launchctl_labels())
     for filename in list_plists(LAUNCH_AGENTS_DIR):
         plist_path = os.path.join(LAUNCH_AGENTS_DIR, filename)
-        try:
-            data = load_plist(plist_path)
-        except Exception:
-            data = {}
-        label = data.get("Label", os.path.splitext(filename)[0])
-        schedule = format_schedule(data)
-        run_at_load = data.get("RunAtLoad")
-        installed.append({
-            "filename": filename,
-            "path": plist_path,
-            "label": label,
-            "loaded": label in loaded_labels,
-            "schedule": schedule,
-            "run_at_load": run_at_load,
-            "has_template": os.path.isfile(os.path.join(TEMPLATES_DIR, filename)),
-        })
+        installed.append(build_job_entry(plist_path, loaded_labels))
     return installed
+
+
+def find_job(target: str, jobs: Optional[List[Dict]] = None) -> Optional[Dict]:
+    if jobs is None:
+        jobs = build_installed_jobs()
+    for item in jobs:
+        if item["label"] == target or item["filename"] == target or item["path"] == target:
+            return item
+    return None
 
 
 def print_jobs(jobs: List[Dict], only_loaded: bool = False) -> None:
@@ -135,7 +185,7 @@ def print_jobs(jobs: List[Dict], only_loaded: bool = False) -> None:
     for idx, job in enumerate(rows, start=1):
         label = job["label"].ljust(label_w)
         loaded = "yes" if job["loaded"] else "no"
-        run_at_load = bool_str(job["run_at_load"]).ljust(9)
+    run_at_load = bool_str(job["runAtLoad"]).ljust(9)
         schedule = job["schedule"].ljust(sched_w)
         print(f"{str(idx).rjust(2)}  {label}  {loaded.ljust(6)}  {run_at_load}  {schedule}  {job['filename']}")
 
@@ -152,13 +202,13 @@ def choose_index(max_index: int, prompt: str) -> Optional[int]:
         print("Opcao invalida. Digite o numero ou pressione Enter para cancelar.")
 
 
-def launchctl_reload(plist_path: str) -> None:
+def launchctl_reload(plist_path: str) -> bool:
     run_launchctl(["launchctl", "unload", plist_path])
-    run_launchctl(["launchctl", "load", plist_path])
+    return run_launchctl(["launchctl", "load", plist_path])
 
 
-def launchctl_unload(plist_path: str) -> None:
-    run_launchctl(["launchctl", "unload", plist_path])
+def launchctl_unload(plist_path: str) -> bool:
+    return run_launchctl(["launchctl", "unload", plist_path])
 
 
 def edit_schedule(plist_path: str, template_path: Optional[str]) -> None:
@@ -167,22 +217,7 @@ def edit_schedule(plist_path: str, template_path: Optional[str]) -> None:
     print(f"Label: {data.get('Label', '-')}")
     print(f"Schedule atual: {format_schedule(data)}")
 
-    current_type = "none"
-    current_value = None
-    if "StartCalendarInterval" in data and isinstance(data["StartCalendarInterval"], dict):
-        sci = data["StartCalendarInterval"]
-        h = sci.get("Hour")
-        m = sci.get("Minute")
-        if h is not None and m is not None:
-            current_type = "calendar"
-            current_value = f"{int(h):02d}:{int(m):02d}"
-    elif "StartInterval" in data:
-        try:
-            current_type = "interval"
-            current_value = str(int(data["StartInterval"]))
-        except Exception:
-            current_type = "interval"
-            current_value = None
+    current_type, current_value = parse_schedule(data)
 
     default_choice = {"calendar": "1", "interval": "2", "none": "3"}.get(current_type, "1")
 
@@ -427,11 +462,7 @@ def main() -> None:
     if args.uninstall:
         jobs = build_installed_jobs()
         target = args.uninstall
-        job = None
-        for item in jobs:
-            if item["label"] == target or item["filename"] == target or item["path"] == target:
-                job = item
-                break
+        job = find_job(target, jobs)
         if not job:
             print("Job nao encontrado.")
             sys.exit(1)
@@ -442,11 +473,7 @@ def main() -> None:
     if args.edit:
         jobs = build_installed_jobs()
         target = args.edit
-        job = None
-        for item in jobs:
-            if item["label"] == target or item["filename"] == target or item["path"] == target:
-                job = item
-                break
+        job = find_job(target, jobs)
         if not job:
             print("Job nao encontrado.")
             sys.exit(1)
