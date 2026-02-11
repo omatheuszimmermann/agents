@@ -8,7 +8,7 @@
     <key>ProgramArguments</key>
     <array>
       <string>/Users/matheuszimmermannai/.nvm/versions/node/v22.22.0/bin/node</string>
-      <string>/Users/matheuszimmermannai/Documents/Projects/agents/bots/discord-cmd-bot/index.js</string>
+      <string>/Users/matheuszimmermannai/Documents/agents/bots/discord-cmd-bot/index.js</string>
     </array>
 
     <key>RunAtLoad</key>
@@ -18,8 +18,8 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/matheuszimmermannai/Documents/Projects/agents/runner/logs/mz.out</string>
+    <string>/Users/matheuszimmermannai/Documents/agents/runner/logs/mz.out</string>
     <key>StandardErrorPath</key>
-    <string>/Users/matheuszimmermannai/Documents/Projects/agents/runner/logs/mz.err</string>
+    <string>/Users/matheuszimmermannai/Documents/agents/runner/logs/mz.err</string>
   </dict>
 </plist>
