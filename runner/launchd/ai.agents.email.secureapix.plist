@@ -14,13 +14,11 @@
 		<string>unread</string>
 	</array>
 	<key>RunAtLoad</key>
-	<true/>
+	<false/>
 	<key>StandardOutPath</key>
 	<string>/Users/matheuszimmermannai/Documents/agents/runner/logs/email.secureapix.out</string>
 	<key>StandardErrorPath</key>
 	<string>/Users/matheuszimmermannai/Documents/agents/runner/logs/email.secureapix.err</string>
-	<key>KeepAlive</key>
-	<true/>
 	<key>StartCalendarInterval</key>
 	<dict>
 		<key>Hour</key>
