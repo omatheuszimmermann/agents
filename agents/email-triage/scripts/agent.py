@@ -7,9 +7,9 @@ import json
 import datetime
 from typing import List, Dict
 
-# Import llm_client.py from shared/python
+# Import llm_client.py from shared/python/lib
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python"))
+sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
 from llm_client import load_llm_from_env  # noqa: E402
 
@@ -121,7 +121,16 @@ def send_discord_message(message: str) -> None:
         raise RuntimeError("CHANNEL_ID is not set in agents/email-triage/.env")
     env = os.environ.copy()
     env["MSG_ARG"] = message
-    subprocess.run([notify_script, channel_id, message], check=True, env=env)
+    result = subprocess.run(
+        [notify_script, channel_id, message],
+        check=False,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        err = (result.stderr or result.stdout or "").strip()
+        raise RuntimeError(f"Discord notify failed: {err or 'unknown error'}")
 
 
 def main() -> None:

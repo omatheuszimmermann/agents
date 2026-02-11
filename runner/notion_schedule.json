@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "type": "email_check",
+      "frequency": "daily"
+    },
+    {
+      "type": "posts_create",
+      "frequency": "twice_per_week"
+    }
+  ]
+}

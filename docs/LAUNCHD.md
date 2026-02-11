@@ -15,12 +15,12 @@ launchctl load ~/Library/LaunchAgents/<arquivo>.plist
 
 ## Arquivos existentes
 
-- `runner/launchd/ai.agents.runner.plist`
-  - Executa o runner em horário fixo.
 - `runner/launchd/ai.mz.bot.plist`
   - Mantém o bot do Discord ativo.
-- `runner/launchd/ai.agents.email.secureapix.plist`
-  - Verifica emails não lidos do projeto `secureapix` diariamente.
+- `runner/launchd/ai.agents.notion.worker.plist`
+  - Worker que consome tasks do Notion periodicamente.
+- `runner/launchd/ai.agents.notion.scheduler.plist`
+  - Scheduler que cria tasks recorrentes no Notion.
 
 ## Observacoes
 

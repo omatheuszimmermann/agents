@@ -21,6 +21,7 @@ if [[ -z "$CHANNEL_ID" ]]; then
   exit 1
 fi
 
+export MSG_ARG="${MSG_ARG:-$MSG}"
 payload="{\"content\":$(python3 - <<'PY'
 import json, os
 msg = os.environ.get("MSG_ARG", "")
@@ -29,11 +30,22 @@ PY
 )}"
 
 if [[ -n "${DISCORD_TOKEN:-}" ]]; then
-  curl -sS -H "Content-Type: application/json" \
-    -H "Authorization: Bot ${DISCORD_TOKEN}" \
-    -d "$payload" \
-    -o /dev/null \
-    "https://discord.com/api/v10/channels/${CHANNEL_ID}/messages"
+  tmp_body="$(mktemp)"
+  http_code="$(
+    curl -sS -H "Content-Type: application/json" \
+      -H "Authorization: Bot ${DISCORD_TOKEN}" \
+      -d "$payload" \
+      -o "$tmp_body" \
+      -w "%{http_code}" \
+      "https://discord.com/api/v10/channels/${CHANNEL_ID}/messages"
+  )"
+  if [[ "$http_code" != 2* ]]; then
+    echo "Discord API error: HTTP $http_code" >&2
+    cat "$tmp_body" >&2
+    rm -f "$tmp_body"
+    exit 1
+  fi
+  rm -f "$tmp_body"
   exit 0
 fi
 
@@ -42,7 +54,18 @@ if [[ -z "${DISCORD_WEBHOOK_URL:-}" ]]; then
   exit 1
 fi
 
-curl -sS -H "Content-Type: application/json" \
-  -d "$payload" \
-  -o /dev/null \
-  "$DISCORD_WEBHOOK_URL"
+tmp_body="$(mktemp)"
+http_code="$(
+  curl -sS -H "Content-Type: application/json" \
+    -d "$payload" \
+    -o "$tmp_body" \
+    -w "%{http_code}" \
+    "$DISCORD_WEBHOOK_URL"
+)"
+if [[ "$http_code" != 2* ]]; then
+  echo "Discord webhook error: HTTP $http_code" >&2
+  cat "$tmp_body" >&2
+  rm -f "$tmp_body"
+  exit 1
+fi
+rm -f "$tmp_body"
