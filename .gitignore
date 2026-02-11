@@ -11,7 +11,6 @@ integrations/**/.env
 
 # Runner state
 runner/logs/*
-runner/jobs.json
 runner/state/*
 
 # Agent outputs
