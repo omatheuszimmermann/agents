@@ -21,6 +21,7 @@ if [[ -z "$CHANNEL_ID" ]]; then
   exit 1
 fi
 
+export MSG_ARG="${MSG_ARG:-$MSG}"
 payload="{\"content\":$(python3 - <<'PY'
 import json, os
 msg = os.environ.get("MSG_ARG", "")
