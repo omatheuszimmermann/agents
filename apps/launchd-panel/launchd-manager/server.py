@@ -47,6 +47,7 @@ def job_payload(job: dict) -> dict:
         "loaded": job["loaded"],
         "scheduleType": job["scheduleType"],
         "scheduleValue": job["scheduleValue"],
+        "scheduleDays": job.get("scheduleDays", []),
         "runAtLoad": bool(job.get("runAtLoad")),
         "keepAlive": bool(job.get("keepAlive")),
         "programArgs": job.get("programArgs", ""),
@@ -66,6 +67,20 @@ def parse_time(value: str) -> str:
     if h < 0 or h > 23 or m < 0 or m > 59:
         raise ValueError("Horario invalido")
     return f"{h:02d}:{m:02d}"
+
+
+def parse_weekdays(values) -> list:
+    days = []
+    for item in values:
+        if not isinstance(item, int) and not (isinstance(item, str) and item.isdigit()):
+            raise ValueError("Dia da semana invalido")
+        day = int(item)
+        if day < 1 or day > 7:
+            raise ValueError("Dia da semana invalido")
+        days.append(day)
+    if not days:
+        raise ValueError("Selecione pelo menos um dia da semana")
+    return sorted(set(days))
 
 
 def parse_interval(value: str) -> int:
@@ -108,12 +123,20 @@ def apply_updates(data: dict, updates: dict):
     if "scheduleType" in updates:
         schedule_type = updates.get("scheduleType") or "none"
         schedule_value = (updates.get("scheduleValue") or "").strip()
+        schedule_days = updates.get("scheduleDays") or []
         data.pop("StartCalendarInterval", None)
         data.pop("StartInterval", None)
         if schedule_type == "calendar":
             parsed = parse_time(schedule_value)
             h, m = parsed.split(":", 1)
             data["StartCalendarInterval"] = {"Hour": int(h), "Minute": int(m)}
+        elif schedule_type == "weekly":
+            parsed = parse_time(schedule_value)
+            days = parse_weekdays(schedule_days)
+            h, m = parsed.split(":", 1)
+            data["StartCalendarInterval"] = [
+                {"Weekday": day, "Hour": int(h), "Minute": int(m)} for day in days
+            ]
         elif schedule_type == "interval":
             data["StartInterval"] = parse_interval(schedule_value)
 
@@ -171,10 +194,18 @@ class LaunchdHandler(BaseHTTPRequestHandler):
 
         schedule_type = payload.get("scheduleType", "none")
         schedule_value = (payload.get("scheduleValue") or "").strip()
+        schedule_days = payload.get("scheduleDays") or []
 
         if schedule_type == "calendar":
             try:
                 schedule_value = parse_time(schedule_value)
+            except ValueError as exc:
+                json_response(self, 400, {"error": str(exc)})
+                return
+        elif schedule_type == "weekly":
+            try:
+                schedule_value = parse_time(schedule_value)
+                schedule_days = parse_weekdays(schedule_days)
             except ValueError as exc:
                 json_response(self, 400, {"error": str(exc)})
                 return
@@ -210,6 +241,13 @@ class LaunchdHandler(BaseHTTPRequestHandler):
             stdout_path=stdout_path,
             stderr_path=stderr_path,
         )
+
+        if schedule_type == "weekly":
+            h, m = schedule_value.split(":", 1)
+            data.pop("StartCalendarInterval", None)
+            data["StartCalendarInterval"] = [
+                {"Weekday": day, "Hour": int(h), "Minute": int(m)} for day in schedule_days
+            ]
 
         template_path = os.path.join(jobctl.TEMPLATES_DIR, filename)
         jobctl.save_plist(template_path, data)

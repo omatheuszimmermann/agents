@@ -88,9 +88,11 @@ p {
   gap: 28px;
 }
 
-.topbar {
+.toolbar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
   padding: 18px 24px;
   background: var(--panel);
   border: 1px solid var(--panel-border);
@@ -98,18 +100,6 @@ p {
   box-shadow: var(--shadow);
   backdrop-filter: blur(16px);
   animation: fadeUp 0.6s ease;
-}
-
-.topbar-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
 }
 
 .search input {
@@ -134,24 +124,10 @@ p {
   height: 24px;
 }
 
-.mode {
+.toolbar-actions {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: rgba(0, 95, 115, 0.08);
-  color: var(--accent-2);
-  font-weight: 600;
-  font-size: 0.85rem;
-}
-
-.mode-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent-2);
-  box-shadow: 0 0 12px rgba(0, 95, 115, 0.7);
+  gap: 12px;
+  margin-left: auto;
 }
 
 .grid-layout {
@@ -334,6 +310,31 @@ label.checkbox {
   color: var(--ink);
 }
 
+.weekdays {
+  grid-column: 1 / -1;
+  border: 1px solid rgba(16, 19, 24, 0.12);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: none;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  color: var(--muted);
+}
+
+.weekdays legend {
+  padding: 0 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.weekdays label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
 .form-actions {
   display: flex;
   gap: 12px;
@@ -361,11 +362,11 @@ label.checkbox {
 }
 
 @media (max-width: 860px) {
-  .topbar-actions {
+  .toolbar-actions {
     width: 100%;
   }
 
-  .topbar-actions .btn {
+  .toolbar-actions .btn {
     flex: 1;
   }
 }

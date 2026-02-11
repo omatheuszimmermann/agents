@@ -8,7 +8,7 @@ import subprocess
 import sys
 from typing import Dict, List, Optional, Tuple
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 TEMPLATES_DIR = os.path.join(REPO_ROOT, "runner", "launchd")
 LAUNCH_AGENTS_DIR = os.path.expanduser("~/Library/LaunchAgents")
 
@@ -65,36 +65,45 @@ def launchctl_labels() -> List[str]:
     return labels
 
 
-def parse_schedule(plist: Dict) -> Tuple[str, str]:
+def parse_schedule(plist: Dict) -> Tuple[str, str, List[int]]:
     if "StartCalendarInterval" in plist:
         sci = plist["StartCalendarInterval"]
         if isinstance(sci, list):
             times = []
+            weekdays: List[int] = []
             for item in sci:
                 h = item.get("Hour")
                 m = item.get("Minute")
+                wd = item.get("Weekday")
+                if wd is not None:
+                    weekdays.append(int(wd))
                 if h is not None and m is not None:
                     times.append(f"{int(h):02d}:{int(m):02d}")
             if times:
-                return "calendar", ", ".join(times)
-            return "calendar", ""
+                if weekdays:
+                    return "weekly", times[0], sorted(set(weekdays))
+                return "calendar", times[0], []
+            return "calendar", "", []
         if isinstance(sci, dict):
             h = sci.get("Hour")
             m = sci.get("Minute")
             if h is not None and m is not None:
-                return "calendar", f"{int(h):02d}:{int(m):02d}"
-            return "calendar", ""
+                return "calendar", f"{int(h):02d}:{int(m):02d}", []
+            return "calendar", "", []
     if "StartInterval" in plist:
         try:
             seconds = int(plist["StartInterval"])
-            return "interval", str(seconds)
+            return "interval", str(seconds), []
         except Exception:
-            return "interval", ""
-    return "none", ""
+            return "interval", "", []
+    return "none", "", []
 
 
 def format_schedule(plist: Dict) -> str:
-    schedule_type, schedule_value = parse_schedule(plist)
+    schedule_type, schedule_value, weekdays = parse_schedule(plist)
+    if schedule_type == "weekly":
+        days = ",".join(str(day) for day in weekdays) if weekdays else ""
+        return f"weekly: {days} {schedule_value}".strip()
     if schedule_type == "calendar":
         if schedule_value:
             return f"calendar: {schedule_value}"
@@ -132,7 +141,7 @@ def build_job_entry(plist_path: str, loaded_labels: Optional[set] = None) -> Dic
         data = {}
 
     label = data.get("Label", os.path.splitext(filename)[0])
-    schedule_type, schedule_value = parse_schedule(data)
+    schedule_type, schedule_value, weekdays = parse_schedule(data)
     run_at_load = data.get("RunAtLoad")
     keep_alive = data.get("KeepAlive")
 
@@ -144,6 +153,7 @@ def build_job_entry(plist_path: str, loaded_labels: Optional[set] = None) -> Dic
         "loaded": label in loaded_labels if loaded_labels is not None else False,
         "scheduleType": schedule_type,
         "scheduleValue": schedule_value,
+        "scheduleDays": weekdays,
         "schedule": format_schedule(data),
         "runAtLoad": run_at_load,
         "keepAlive": bool(keep_alive) if keep_alive is not None else False,
@@ -185,7 +195,7 @@ def print_jobs(jobs: List[Dict], only_loaded: bool = False) -> None:
     for idx, job in enumerate(rows, start=1):
         label = job["label"].ljust(label_w)
         loaded = "yes" if job["loaded"] else "no"
-    run_at_load = bool_str(job["runAtLoad"]).ljust(9)
+        run_at_load = bool_str(job["runAtLoad"]).ljust(9)
         schedule = job["schedule"].ljust(sched_w)
         print(f"{str(idx).rjust(2)}  {label}  {loaded.ljust(6)}  {run_at_load}  {schedule}  {job['filename']}")
 
@@ -217,7 +227,7 @@ def edit_schedule(plist_path: str, template_path: Optional[str]) -> None:
     print(f"Label: {data.get('Label', '-')}")
     print(f"Schedule atual: {format_schedule(data)}")
 
-    current_type, current_value = parse_schedule(data)
+    current_type, current_value, current_days = parse_schedule(data)
 
     default_choice = {"calendar": "1", "interval": "2", "none": "3"}.get(current_type, "1")
 

@@ -2,8 +2,7 @@ const state = {
   jobs: [],
   filteredJobs: [],
   selectedId: null,
-  editingId: null,
-  mode: "mock"
+  editingId: null
 };
 
 const elements = {
@@ -19,139 +18,61 @@ const elements = {
   resetFormBtn: document.getElementById("resetFormBtn"),
   newJobBtn: document.getElementById("newJobBtn"),
   refreshBtn: document.getElementById("refreshBtn"),
-  modeLabel: document.getElementById("modeLabel"),
-  modeDot: document.getElementById("modeDot")
+  scheduleType: document.querySelector("select[name='scheduleType']"),
+  scheduleValue: document.querySelector("input[name='scheduleValue']"),
+  weekdaysField: document.getElementById("weekdaysField")
 };
 
 const template = document.getElementById("jobCardTemplate");
 
-function getInitialJobs() {
-  return [
-    {
-      id: "ai.mz.bot",
-      label: "ai.mz.bot",
-      filename: "ai.mz.bot.plist",
-      loaded: true,
-      scheduleType: "none",
-      scheduleValue: "",
-      runAtLoad: true,
-      keepAlive: true,
-      programArgs: "/Users/.../node /Users/.../bots/discord-cmd-bot/index.js",
-      stdoutPath: "/Users/.../runner/logs/mz.out",
-      stderrPath: "/Users/.../runner/logs/mz.err"
-    },
-    {
-      id: "ai.agents.runner",
-      label: "ai.agents.runner",
-      filename: "ai.agents.posts.secureapix.plist",
-      loaded: true,
-      scheduleType: "calendar",
-      scheduleValue: "09:00",
-      runAtLoad: true,
-      keepAlive: false,
-      programArgs: "/usr/bin/python3 /Users/.../runner/run_jobs.py",
-      stdoutPath: "/Users/.../runner/logs/launchd.out",
-      stderrPath: "/Users/.../runner/logs/launchd.err"
-    },
-    {
-      id: "ai.agents.email.secureapix",
-      label: "ai.agents.email.secureapix",
-      filename: "ai.agents.email.secureapix.plist",
-      loaded: false,
-      scheduleType: "calendar",
-      scheduleValue: "09:30",
-      runAtLoad: true,
-      keepAlive: false,
-      programArgs: "/usr/bin/python3 /Users/.../agents/email-triage/scripts/agent.py secureapix 10 --status unread",
-      stdoutPath: "/Users/.../runner/logs/email.secureapix.out",
-      stderrPath: "/Users/.../runner/logs/email.secureapix.err"
-    }
-  ];
-}
-
 const api = {
   async list() {
-    if (state.mode === "live") {
-      const res = await fetch("/api/launchd/jobs");
-      if (!res.ok) {
-        const payload = await res.json().catch(() => ({}));
-        throw new Error(payload.error || "Falha ao listar jobs");
-      }
-      return res.json();
+    const res = await fetch("/api/launchd/jobs");
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload.error || "Falha ao listar jobs");
     }
-    const stored = localStorage.getItem("launchd.jobs");
-    if (stored) {
-      return JSON.parse(stored);
-    }
-    const initial = getInitialJobs();
-    localStorage.setItem("launchd.jobs", JSON.stringify(initial));
-    return initial;
-  },
-  async save(jobs) {
-    if (state.mode === "live") {
-      await fetch("/api/launchd/jobs", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(jobs)
-      });
-      return;
-    }
-    localStorage.setItem("launchd.jobs", JSON.stringify(jobs));
+    return res.json();
   },
   async create(job) {
-    if (state.mode === "live") {
-      const res = await fetch("/api/launchd/jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(job)
-      });
-      if (!res.ok) {
-        const payload = await res.json().catch(() => ({}));
-        throw new Error(payload.error || "Falha ao criar job");
-      }
-      return res.json();
+    const res = await fetch("/api/launchd/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(job)
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload.error || "Falha ao criar job");
     }
-    const jobs = await api.list();
-    jobs.push(job);
-    await api.save(jobs);
-    return job;
+    return res.json();
   },
   async update(jobId, updates) {
-    if (state.mode === "live") {
-      const res = await fetch(`/api/launchd/jobs/${encodeURIComponent(jobId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates)
-      });
-      if (!res.ok) {
-        const payload = await res.json().catch(() => ({}));
-        throw new Error(payload.error || "Falha ao atualizar job");
-      }
-      return res.json();
+    const res = await fetch(`/api/launchd/jobs/${encodeURIComponent(jobId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates)
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload.error || "Falha ao atualizar job");
     }
-    const jobs = await api.list();
-    const idx = jobs.findIndex((job) => job.id === jobId);
-    if (idx === -1) return null;
-    jobs[idx] = { ...jobs[idx], ...updates };
-    await api.save(jobs);
-    return jobs[idx];
+    return res.json();
   },
   async remove(jobId) {
-    if (state.mode === "live") {
-      const res = await fetch(`/api/launchd/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE" });
-      if (!res.ok && res.status !== 204) {
-        const payload = await res.json().catch(() => ({}));
-        throw new Error(payload.error || "Falha ao remover job");
-      }
-      return;
+    const res = await fetch(`/api/launchd/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE" });
+    if (!res.ok && res.status !== 204) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload.error || "Falha ao remover job");
     }
-    const jobs = await api.list();
-    const next = jobs.filter((job) => job.id !== jobId);
-    await api.save(next);
   }
 };
 
 function scheduleLabel(job) {
+  if (job.scheduleType === "weekly") {
+    const days = (job.scheduleDays || []).map(weekdayName).join(", ");
+    const time = job.scheduleValue || "--";
+    return `weekly: ${days || "--"} ${time}`;
+  }
   if (job.scheduleType === "calendar") {
     return `calendar: ${job.scheduleValue || "--"}`;
   }
@@ -163,6 +84,49 @@ function scheduleLabel(job) {
 
 function runAtLoadLabel(job) {
   return job.runAtLoad ? "RunAtLoad: yes" : "RunAtLoad: no";
+}
+
+function weekdayName(value) {
+  const map = {
+    1: "Seg",
+    2: "Ter",
+    3: "Qua",
+    4: "Qui",
+    5: "Sex",
+    6: "Sab",
+    7: "Dom"
+  };
+  return map[value] || String(value);
+}
+
+function clearWeekdays() {
+  const inputs = elements.form.querySelectorAll("input[name='weekday']");
+  inputs.forEach((input) => {
+    input.checked = false;
+  });
+}
+
+function setWeekdays(values) {
+  const inputs = elements.form.querySelectorAll("input[name='weekday']");
+  inputs.forEach((input) => {
+    input.checked = values.includes(Number(input.value));
+  });
+}
+
+function getSelectedWeekdays() {
+  const inputs = elements.form.querySelectorAll("input[name='weekday']:checked");
+  return Array.from(inputs).map((input) => Number(input.value));
+}
+
+function toggleScheduleFields() {
+  const type = elements.scheduleType.value;
+  if (type === "weekly") {
+    elements.weekdaysField.style.display = "flex";
+    elements.scheduleValue.placeholder = "09:00";
+  } else {
+    elements.weekdaysField.style.display = "none";
+    elements.scheduleValue.placeholder = type === "interval" ? "3600" : "09:00";
+  }
 }
 
 function renderList() {
@@ -266,6 +230,8 @@ function resetForm() {
   state.editingId = null;
   elements.formTitle.textContent = "Criar novo job";
   elements.formHint.textContent = "LaunchAgents";
+  clearWeekdays();
+  toggleScheduleFields();
 }
 
 function startEdit(job) {
@@ -293,6 +259,12 @@ function startEdit(job) {
       field.value = value;
     }
   }
+
+  clearWeekdays();
+  if (job.scheduleDays && job.scheduleDays.length) {
+    setWeekdays(job.scheduleDays);
+  }
+  toggleScheduleFields();
 }
 
 async function confirmDelete(jobId) {
@@ -317,6 +289,7 @@ function jobFromForm() {
   const data = new FormData(elements.form);
   const scheduleType = data.get("scheduleType");
   const scheduleValue = data.get("scheduleValue").trim();
+  const scheduleDays = getSelectedWeekdays();
 
   return {
     id: data.get("label").trim(),
@@ -325,27 +298,13 @@ function jobFromForm() {
     loaded: true,
     scheduleType: scheduleType,
     scheduleValue: scheduleType === "none" ? "" : scheduleValue,
+    scheduleDays: scheduleType === "weekly" ? scheduleDays : [],
     runAtLoad: data.get("runAtLoad") === "on",
     keepAlive: data.get("keepAlive") === "on",
     programArgs: data.get("programArgs").trim(),
     stdoutPath: data.get("stdoutPath").trim(),
     stderrPath: data.get("stderrPath").trim()
   };
-}
-
-function setupMode() {
-  const params = new URLSearchParams(window.location.search);
-  const mode = params.get("mode");
-  if (mode) {
-    state.mode = mode;
-  } else if (window.location.protocol.startsWith("http")) {
-    state.mode = "live";
-  }
-  if (state.mode === "live") {
-    elements.modeDot.style.background = "#00b386";
-    elements.modeDot.style.boxShadow = "0 0 12px rgba(0, 179, 134, 0.7)";
-  }
-  elements.modeLabel.textContent = `Modo: ${state.mode}`;
 }
 
 async function handleSubmit(event) {
@@ -358,6 +317,14 @@ async function handleSubmit(event) {
   }
   if (!job.filename.endsWith(".plist")) {
     alert("Arquivo deve terminar com .plist");
+    return;
+  }
+  if (job.scheduleType === "weekly" && job.scheduleDays.length === 0) {
+    alert("Selecione pelo menos um dia da semana.");
+    return;
+  }
+  if (job.scheduleType === "weekly" && !job.scheduleValue) {
+    alert("Informe o horario (HH:MM).");
     return;
   }
 
@@ -386,6 +353,7 @@ function registerEvents() {
   elements.activeOnlyToggle.addEventListener("change", applyFilters);
   elements.form.addEventListener("submit", handleSubmit);
   elements.resetFormBtn.addEventListener("click", resetForm);
+  elements.scheduleType.addEventListener("change", toggleScheduleFields);
   elements.newJobBtn.addEventListener("click", () => {
     resetForm();
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
@@ -394,8 +362,8 @@ function registerEvents() {
 }
 
 async function init() {
-  setupMode();
   registerEvents();
+  toggleScheduleFields();
   await refresh();
 }
 
