@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Launchd Control</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="grid"></div>
+    </div>
+
+    <main class="app" id="app">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Launchd Control</p>
+          <h1>Gerencie jobs do macOS sem tocar em plist.</h1>
+          <p class="subtitle">
+            Liste, edite e instale LaunchAgents visualmente. As mudancas disparam
+            as acoes reais no macOS quando conectadas ao backend.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button class="btn primary" id="newJobBtn">Novo job</button>
+          <button class="btn ghost" id="refreshBtn">Atualizar</button>
+        </div>
+      </header>
+
+      <section class="toolbar">
+        <div class="search">
+          <input type="text" id="searchInput" placeholder="Buscar por label ou arquivo" />
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="activeOnlyToggle" />
+          <span>Somente ativos</span>
+        </label>
+        <div class="mode">
+          <span class="mode-dot" id="modeDot"></span>
+          <span id="modeLabel">Modo: mock</span>
+        </div>
+      </section>
+
+      <section class="grid-layout">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Jobs instalados</h2>
+            <span class="counter" id="jobCount">0</span>
+          </div>
+          <div class="job-list" id="jobList"></div>
+        </div>
+
+        <div class="panel detail" id="detailPanel">
+          <div class="panel-header">
+            <h2>Detalhes</h2>
+            <span class="pill" id="detailStatus">Selecione um job</span>
+          </div>
+          <div class="detail-body" id="detailBody">
+            <p class="muted">Selecione um item na lista para editar ou excluir.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="formPanel">
+        <div class="panel-header">
+          <h2 id="formTitle">Criar novo job</h2>
+          <span class="pill" id="formHint">LaunchAgents</span>
+        </div>
+        <form id="jobForm">
+          <div class="form-grid">
+            <label>
+              Label
+              <input type="text" name="label" placeholder="ai.meu.job" required />
+            </label>
+            <label>
+              Arquivo .plist
+              <input type="text" name="filename" placeholder="ai.meu.job.plist" required />
+            </label>
+            <label>
+              Schedule
+              <select name="scheduleType">
+                <option value="calendar">Diario (HH:MM)</option>
+                <option value="interval">Intervalo (segundos)</option>
+                <option value="none">Sem agendamento</option>
+              </select>
+            </label>
+            <label>
+              Valor do schedule
+              <input type="text" name="scheduleValue" placeholder="09:00 ou 3600" />
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" name="runAtLoad" checked />
+              RunAtLoad
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" name="keepAlive" />
+              KeepAlive
+            </label>
+            <label class="full">
+              ProgramArguments
+              <textarea name="programArgs" rows="3" placeholder="/usr/bin/python3 /path/script.py arg1"></textarea>
+            </label>
+            <label>
+              StandardOutPath
+              <input type="text" name="stdoutPath" placeholder="/Users/.../runner/logs/job.out" />
+            </label>
+            <label>
+              StandardErrorPath
+              <input type="text" name="stderrPath" placeholder="/Users/.../runner/logs/job.err" />
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="btn primary" type="submit">Salvar</button>
+            <button class="btn ghost" type="button" id="resetFormBtn">Limpar</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <template id="jobCardTemplate">
+      <article class="job-card">
+        <header>
+          <div>
+            <h3></h3>
+            <p class="muted file"></p>
+          </div>
+          <span class="status"></span>
+        </header>
+        <div class="meta">
+          <span class="pill schedule"></span>
+          <span class="pill runatload"></span>
+        </div>
+        <div class="actions">
+          <button class="btn ghost select">Editar</button>
+          <button class="btn danger delete">Excluir</button>
+        </div>
+      </article>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -13,6 +13,14 @@ launchctl unload ~/Library/LaunchAgents/<arquivo>.plist 2>/dev/null
 launchctl load ~/Library/LaunchAgents/<arquivo>.plist
 ```
 
+## Gerenciamento rapido
+
+Use o gerenciador em `frontend/launchd-manager/jobctl.py` para listar, instalar, editar ou remover jobs. Ele aplica as mudancas automaticamente no macOS.
+
+```bash
+python3 frontend/launchd-manager/jobctl.py
+```
+
 ## Arquivos existentes
 
 - `runner/launchd/ai.agents.runner.plist`
