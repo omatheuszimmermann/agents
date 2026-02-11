@@ -1,34 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-  <dict>
-    <key>Label</key>
-    <string>ai.agents.email.secureapix</string>
-
-    <key>ProgramArguments</key>
-    <array>
-      <string>/usr/bin/python3</string>
-      <string>/Users/matheuszimmermannai/Documents/agents/agents/email-triage/scripts/agent.py</string>
-      <string>secureapix</string>
-      <string>10</string>
-      <string>--status</string>
-      <string>unread</string>
-    </array>
-
-    <!-- roda todo dia às 09:30 -->
-    <key>StartCalendarInterval</key>
-    <dict>
-      <key>Hour</key><integer>9</integer>
-      <key>Minute</key><integer>30</integer>
-    </dict>
-
-    <!-- roda também quando você carregar / quando o Mac ligar (catch-up) -->
-    <key>RunAtLoad</key>
-    <true/>
-
-    <key>StandardOutPath</key>
-    <string>/Users/matheuszimmermannai/Documents/agents/runner/logs/email.secureapix.out</string>
-    <key>StandardErrorPath</key>
-    <string>/Users/matheuszimmermannai/Documents/agents/runner/logs/email.secureapix.err</string>
-  </dict>
+<dict>
+	<key>Label</key>
+	<string>ai.agents.email.secureapix</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/bin/python3</string>
+		<string>/Users/matheuszimmermannai/Documents/agents/agents/email-triage/scripts/agent.py</string>
+		<string>secureapix</string>
+		<string>10</string>
+		<string>--status</string>
+		<string>unread</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>/Users/matheuszimmermannai/Documents/agents/runner/logs/email.secureapix.out</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/matheuszimmermannai/Documents/agents/runner/logs/email.secureapix.err</string>
+	<key>KeepAlive</key>
+	<true/>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>10</integer>
+		<key>Minute</key>
+		<integer>0</integer>
+	</dict>
+</dict>
 </plist>
