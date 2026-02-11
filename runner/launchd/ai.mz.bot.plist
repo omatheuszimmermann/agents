@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>ai.mz.bot</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/Users/matheuszimmermannai/.nvm/versions/node/v22.22.0/bin/node</string>
+      <string>/Users/matheuszimmermannai/Documents/agents/bots/discord-cmd-bot/index.js</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/matheuszimmermannai/Documents/agents/runner/logs/mz.out</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/matheuszimmermannai/Documents/agents/runner/logs/mz.err</string>
+  </dict>
+</plist>

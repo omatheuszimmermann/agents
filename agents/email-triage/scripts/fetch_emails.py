@@ -7,8 +7,9 @@ import importlib
 from email.header import decode_header
 from typing import List, Tuple
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-PROJECTS_DIR = os.path.join(BASE_DIR, "projects")
+SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
+AGENT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+PROJECTS_DIR = os.path.join(AGENT_DIR, "projects")
 
 
 def load_env_file(path: str) -> None:
@@ -155,7 +156,7 @@ def fetch_email_headers(limit: int, status: str, since: str, before: str) -> Lis
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fetch email headers via IMAP.")
-    parser.add_argument("project", help="Project name in email/projects/<project>/.env")
+    parser.add_argument("project", help="Project name in agents/email-triage/projects/<project>/.env")
     parser.add_argument("limit", nargs="?", default=10, type=int, help="Max emails to fetch (default: 10)")
     parser.add_argument("--status", choices=["all", "read", "unread"], default="all", help="Filter by status")
     parser.add_argument("--since", help="Filter emails since date (YYYY-MM-DD)")

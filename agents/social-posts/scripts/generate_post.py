@@ -6,9 +6,9 @@ import json
 import re
 import subprocess
 
-# Import llm_client.py from /agents/lib
-BASE_AGENTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-sys.path.insert(0, os.path.join(BASE_AGENTS_DIR, "lib"))
+# Import llm_client.py from shared/python
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python"))
 
 from llm_client import load_llm_from_env  # noqa: E402
 
@@ -208,7 +208,7 @@ def main():
         print(f"Project file not found: {project_file}", file=sys.stderr)
         sys.exit(1)
 
-    # Load .env from social-media root
+    # Load .env from social-posts root
     env_file = os.path.join(BASE_DIR, ".env")
     load_env_file(env_file)
 
@@ -283,7 +283,7 @@ def main():
         f.write(render_output_markdown(post_number, sections))
 
     # Notify Discord (best-effort)
-    notify_script = os.path.join(BASE_AGENTS_DIR, "discord", "notify_discord.sh")
+    notify_script = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
     if os.path.exists(notify_script):
         channel_id = os.getenv("CHANNEL_ID", "").strip()
         if channel_id:
