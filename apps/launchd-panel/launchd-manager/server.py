@@ -253,6 +253,7 @@ class LaunchdHandler(BaseHTTPRequestHandler):
         jobctl.save_plist(template_path, data)
         jobctl.save_plist(dest_path, data)
         jobctl.launchctl_reload(dest_path)
+        jobctl.upsert_runner_job(label, program_args)
 
         job = jobctl.build_job_entry(dest_path, set(jobctl.launchctl_labels()))
         json_response(self, 201, job_payload(job))
@@ -281,6 +282,7 @@ class LaunchdHandler(BaseHTTPRequestHandler):
             return
 
         plist_path = job["path"]
+        old_label = job["label"]
         data = jobctl.load_plist(plist_path)
         payload["label"] = new_label
         try:
@@ -311,6 +313,9 @@ class LaunchdHandler(BaseHTTPRequestHandler):
             jobctl.save_plist(new_template, data)
 
         jobctl.launchctl_reload(plist_path)
+        jobctl.upsert_runner_job(new_label, data.get("ProgramArguments", []))
+        if old_label != new_label:
+            jobctl.remove_runner_job(old_label)
         updated = jobctl.build_job_entry(plist_path, set(jobctl.launchctl_labels()))
         json_response(self, 200, job_payload(updated))
 
@@ -328,6 +333,7 @@ class LaunchdHandler(BaseHTTPRequestHandler):
 
         jobctl.launchctl_unload(job["path"])
         os.remove(job["path"])
+        jobctl.remove_runner_job(job["label"])
         self.send_response(204)
         self.end_headers()
 

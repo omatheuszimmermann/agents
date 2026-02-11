@@ -54,6 +54,7 @@ Depois acesse a UI em `http://localhost:8787`.
 - Os jobs instalados ficam em `~/Library/LaunchAgents/`.
 - Ao editar, o job e recarregado automaticamente com `launchctl`.
 - Se existir um template com o mesmo nome do job instalado, ele tambem e atualizado.
+- Ao criar/editar/excluir, o `runner/jobs.json` e sincronizado com o `Label` e `ProgramArguments`.
 
 ## Observacoes
 

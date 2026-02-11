@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import os
 import plistlib
 import shlex
@@ -11,6 +12,65 @@ from typing import Dict, List, Optional, Tuple
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 TEMPLATES_DIR = os.path.join(REPO_ROOT, "runner", "launchd")
 LAUNCH_AGENTS_DIR = os.path.expanduser("~/Library/LaunchAgents")
+JOBS_FILE = os.path.join(REPO_ROOT, "runner", "jobs.json")
+
+
+def load_jobs_config() -> Dict:
+    if not os.path.isfile(JOBS_FILE):
+        return {"jobs": []}
+    try:
+        with open(JOBS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict) and isinstance(data.get("jobs"), list):
+            return data
+    except Exception:
+        pass
+    return {"jobs": []}
+
+
+def save_jobs_config(data: Dict) -> None:
+    os.makedirs(os.path.dirname(JOBS_FILE), exist_ok=True)
+    with open(JOBS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def upsert_runner_job(label: str, program_args: List[str]) -> None:
+    if not label or not program_args:
+        return
+    data = load_jobs_config()
+    jobs = data.get("jobs", [])
+    existing = None
+    for job in jobs:
+        if job.get("id") == label:
+            existing = job
+            break
+
+    entry = {
+        "id": label,
+        "cwd": REPO_ROOT,
+        "command": program_args[0],
+        "args": program_args[1:],
+    }
+    if existing and "policy" in existing:
+        entry["policy"] = existing["policy"]
+    else:
+        entry["policy"] = {"type": "manual"}
+
+    if existing:
+        jobs[jobs.index(existing)] = entry
+    else:
+        jobs.append(entry)
+    data["jobs"] = jobs
+    save_jobs_config(data)
+
+
+def remove_runner_job(label: str) -> None:
+    if not label:
+        return
+    data = load_jobs_config()
+    jobs = [job for job in data.get("jobs", []) if job.get("id") != label]
+    data["jobs"] = jobs
+    save_jobs_config(data)
 
 
 def _run(cmd: List[str], check: bool = True) -> subprocess.CompletedProcess:
@@ -286,8 +346,16 @@ def edit_schedule(plist_path: str, template_path: Optional[str]) -> None:
 
 
 def uninstall_job(plist_path: str) -> None:
+    label = None
+    try:
+        data = load_plist(plist_path)
+        label = data.get("Label")
+    except Exception:
+        label = None
     launchctl_unload(plist_path)
     os.remove(plist_path)
+    if label:
+        remove_runner_job(label)
 
 
 def install_from_template(template_path: str) -> str:
@@ -385,6 +453,7 @@ def create_new_job_interactive() -> None:
     dest_path = os.path.join(LAUNCH_AGENTS_DIR, f"{label}.plist")
     save_plist(dest_path, data)
     launchctl_reload(dest_path)
+    upsert_runner_job(label, program_args)
 
     print(f"Job criado e instalado: {dest_path}")
 

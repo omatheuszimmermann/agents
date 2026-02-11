@@ -1,10 +1,17 @@
 {
   "jobs": [
     {
-      "id": "socialmedia_secureapix",
-      "cwd": "/Users/matheuszimmermannai/Documents/agents",
+      "id": "posts_secureapix_create",
+      "cwd": "/Users/matheuszimmermannai/agents",
       "command": "python3",
       "args": ["agents/social-posts/scripts/generate_post.py", "secureapix"],
+      "policy": { "type": "twice_per_week_windows" }
+    },
+    {
+      "id": "email_secureapix_last",
+      "cwd": "/Users/matheuszimmermannai/agents",
+      "command": "python3",
+      "args": ["agents/email-triage/scripts/agent.py", "secureapix", "20", "--status", "unread"],
       "policy": { "type": "twice_per_week_windows" }
     }
   ]
