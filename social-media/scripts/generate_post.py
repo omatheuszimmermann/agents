@@ -283,19 +283,21 @@ def main():
         f.write(render_output_markdown(post_number, sections))
 
     # Notify Discord (best-effort)
-    notify_script = os.path.join(BASE_DIR, "scripts", "notify_discord.sh")
+    notify_script = os.path.join(BASE_AGENTS_DIR, "discord", "notify_discord.sh")
     if os.path.exists(notify_script):
-        normalized_content = render_output_markdown(post_number, sections)
-        first_message, prompt_message = build_discord_messages(normalized_content, post_number)
-        env = os.environ.copy()
-        try:
-            env["MSG_ARG"] = first_message
-            subprocess.run([notify_script, first_message], check=False, env=env)
-            if prompt_message:
-                env["MSG_ARG"] = prompt_message
-                subprocess.run([notify_script, prompt_message], check=False, env=env)
-        except Exception:
-            pass
+        channel_id = os.getenv("CHANNEL_ID", "").strip()
+        if channel_id:
+            normalized_content = render_output_markdown(post_number, sections)
+            first_message, prompt_message = build_discord_messages(normalized_content, post_number)
+            env = os.environ.copy()
+            try:
+                env["MSG_ARG"] = first_message
+                subprocess.run([notify_script, channel_id, first_message], check=False, env=env)
+                if prompt_message:
+                    env["MSG_ARG"] = prompt_message
+                    subprocess.run([notify_script, channel_id, prompt_message], check=False, env=env)
+            except Exception:
+                pass
 
     print(out_file)
 
