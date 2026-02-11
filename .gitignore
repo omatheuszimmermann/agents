@@ -1,13 +1,21 @@
 .env
-social-media/outputs/*
-social-media/history/*
-lib/__pycache__
-_runner/logs/*
-_runner/jobs.json
-_runner/state/*
-_discord_cmd_bot/.env
 node_modules
-email/.env
-email/projects/*/.env
-email/__pycache__
-email/outputs
+
+# Env files
+agents/**/.env
+bots/**/.env
+integrations/**/.env
+
+# Python caches
+**/__pycache__/
+
+# Runner state
+runner/logs/*
+runner/jobs.json
+runner/state/*
+
+# Agent outputs
+agents/social-posts/outputs/*
+agents/social-posts/history/*
+agents/email-triage/outputs/*
+agents/email-triage/tmp/*
