@@ -7,16 +7,17 @@ import json
 import datetime
 from typing import List, Dict
 
-# Import llm_client.py from /agents/lib
-BASE_AGENTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, os.path.join(BASE_AGENTS_DIR, "lib"))
+# Import llm_client.py from shared/python
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python"))
 
 from llm_client import load_llm_from_env  # noqa: E402
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-PROJECTS_DIR = os.path.join(BASE_DIR, "projects")
-OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
-TMP_DIR = os.path.join(BASE_DIR, "tmp")
+SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
+AGENT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+PROJECTS_DIR = os.path.join(AGENT_DIR, "projects")
+OUTPUTS_DIR = os.path.join(AGENT_DIR, "outputs")
+TMP_DIR = os.path.join(AGENT_DIR, "tmp")
 
 
 def load_env_file(path: str) -> None:
@@ -35,7 +36,7 @@ def load_env_file(path: str) -> None:
 
 
 def run_email_fetch(project: str, limit: int, status: str, since: str, before: str) -> List[str]:
-    email_script = os.path.join(BASE_DIR, "fetch_emails.py")
+    email_script = os.path.join(SCRIPT_DIR, "fetch_emails.py")
     if not os.path.exists(email_script):
         raise RuntimeError(f"fetch_emails.py not found at {email_script}")
 
@@ -112,12 +113,12 @@ def classify_email(llm, email_item: Dict[str, str]) -> str:
 
 
 def send_discord_message(message: str) -> None:
-    notify_script = os.path.join(BASE_AGENTS_DIR, "discord", "notify_discord.sh")
+    notify_script = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
     if not os.path.exists(notify_script):
         raise RuntimeError(f"notify_discord.sh not found at {notify_script}")
     channel_id = os.getenv("CHANNEL_ID", "").strip()
     if not channel_id:
-        raise RuntimeError("CHANNEL_ID is not set in email/.env")
+        raise RuntimeError("CHANNEL_ID is not set in agents/email-triage/.env")
     env = os.environ.copy()
     env["MSG_ARG"] = message
     subprocess.run([notify_script, channel_id, message], check=True, env=env)
@@ -125,7 +126,7 @@ def send_discord_message(message: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Email agent: fetch and classify emails.")
-    parser.add_argument("project", help="Project name in email/projects/<project>/.env")
+    parser.add_argument("project", help="Project name in agents/email-triage/projects/<project>/.env")
     parser.add_argument("limit", nargs="?", default=10, type=int, help="Max emails to fetch (default: 10)")
     parser.add_argument("--status", choices=["all", "read", "unread"], default="all", help="Filter by status")
     parser.add_argument("--since", help="Filter emails since date (YYYY-MM-DD)")
@@ -139,7 +140,7 @@ def main() -> None:
 
     # Load project .env first, then base .env to fill missing values.
     load_env_file(env_file)
-    load_env_file(os.path.join(BASE_DIR, ".env"))
+    load_env_file(os.path.join(AGENT_DIR, ".env"))
 
     llm = load_llm_from_env(prefix="LLM")
 

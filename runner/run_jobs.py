@@ -5,7 +5,7 @@ import subprocess
 import sys
 from datetime import datetime, date
 
-BASE = "/Users/matheuszimmermannai/Documents/agents/_runner"
+BASE = os.path.abspath(os.path.dirname(__file__))
 STATE_DIR = os.path.join(BASE, "state")
 LOG_DIR = os.path.join(BASE, "logs")
 JOBS_FILE = os.path.join(BASE, "jobs.json")

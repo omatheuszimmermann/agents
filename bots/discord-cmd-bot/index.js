@@ -2,7 +2,6 @@ const fs = require("fs");
 const path = require("path");
 const { Client, GatewayIntentBits } = require("discord.js");
 const { execFile } = require("child_process");
-const { channel } = require("diagnostics_channel");
 
 function loadEnv(envPath) {
   if (!fs.existsSync(envPath)) return;
@@ -35,7 +34,7 @@ const client = new Client({
 
 function runForcedJob(jobId, cb) {
   const py = "/usr/bin/python3";
-  const runner = "/Users/matheuszimmermannai/Documents/agents/_runner/run_jobs.py";
+  const runner = path.resolve(__dirname, "..", "..", "runner", "run_jobs.py");
   execFile(py, [runner, "--force", jobId], { timeout: 15 * 60 * 1000 }, (err, stdout, stderr) => {
     cb(err, stdout, stderr);
   });
@@ -69,29 +68,38 @@ client.on("messageCreate", async (msg) => {
 
     // Se mencionou e não escreveu nada
     if (parts.length === 0) {
-      await msg.reply("Uso: `@MZ create <project>`");
+      await msg.reply("Uso: `@MZ posts create <project>` ou `@MZ email last <project>`");
       return;
     }
 
-    const cmd = (parts[0] || "").toLowerCase();
+    const domain = (parts[0] || "").toLowerCase();
+    const action = (parts[1] || "").toLowerCase();
+    const project = (parts[2] || "").toLowerCase();
 
-    // Lista de comandos suportados
-    const help = "Comandos: `create <project>`";
+    const allowedDomains = new Set(["posts", "email"]);
+    const allowedActions = {
+      posts: new Set(["create"]),
+      email: new Set(["last"]),
+    };
 
-    if (cmd !== "create") {
-      await msg.reply(`❌ Comando não reconhecido. ${help}`);
+    const help = "Comandos: `posts create <project>` | `email last <project>`";
+
+    if (!allowedDomains.has(domain)) {
+      await msg.reply(`❌ Domínio não reconhecido. ${help}`);
       return;
     }
 
-    // Validação do parâmetro
-    const project = (parts[1] || "").toLowerCase();
+    if (!action || !allowedActions[domain].has(action)) {
+      await msg.reply(`❌ Ação não reconhecida para ${domain}. ${help}`);
+      return;
+    }
+
     if (!project) {
-      await msg.reply("❌ Falta o projeto. Uso: `@MZ create <project>`");
+      await msg.reply(`❌ Falta o projeto. ${help}`);
       return;
     }
 
-    // Mapeamento project -> job id
-    const jobId = `socialmedia_${project}`;
+    const jobId = `${domain}_${project}_${action}`;
 
     await msg.reply(`⏳ Executando agora: \`${jobId}\``);
 
