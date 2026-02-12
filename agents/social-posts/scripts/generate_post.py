@@ -300,6 +300,16 @@ def main():
                 pass
 
     print(out_file)
+    try:
+        normalized_content = render_output_markdown(post_number, sections)
+        first_message, prompt_message = build_discord_messages(normalized_content, post_number)
+        if prompt_message:
+            notion_text = f"{first_message}\n\n{prompt_message}"
+        else:
+            notion_text = first_message
+        print(f"NOTION_RESULT: {notion_text}")
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     main()

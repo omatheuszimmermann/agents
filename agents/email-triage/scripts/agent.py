@@ -169,6 +169,7 @@ def main() -> None:
                 seen_ids = set()
 
         results = []
+        notion_messages = []
         for item in emails:
             message_id = item.get("message_id", "")
             if message_id and message_id in seen_ids:
@@ -191,6 +192,7 @@ def main() -> None:
             )
             try:
                 send_discord_message(message)
+                notion_messages.append(message)
             except Exception as exc:
                 print(f"Discord notify failed: {exc}", file=sys.stderr)
 
@@ -204,6 +206,9 @@ def main() -> None:
             json.dump(sorted(seen_ids), f, indent=2, ensure_ascii=False)
 
         print(output_file)
+        if notion_messages:
+            joined = "\n\n---\n\n".join(notion_messages)
+            print(f"NOTION_RESULT: {joined}")
     finally:
         if os.path.exists(tmp_file):
             os.remove(tmp_file)

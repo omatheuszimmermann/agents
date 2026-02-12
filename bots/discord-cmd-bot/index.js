@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 const { Client, GatewayIntentBits } = require("discord.js");
-const { execFile } = require("child_process");
 
 function loadEnv(envPath) {
   if (!fs.existsSync(envPath)) return;
@@ -16,6 +15,7 @@ function loadEnv(envPath) {
 
 const ENV_PATH = path.join(__dirname, ".env");
 loadEnv(ENV_PATH);
+loadEnv(path.resolve(__dirname, "..", "..", "integrations", "notion", ".env"));
 
 const TOKEN = process.env.DISCORD_TOKEN;
 
@@ -32,15 +32,7 @@ const client = new Client({
   ],
 });
 
-function runForcedJob(jobId, cb) {
-  const py = "/usr/bin/python3";
-  const runner = path.resolve(__dirname, "..", "..", "runner", "run_jobs.py");
-  execFile(py, [runner, "--force", jobId], { timeout: 15 * 60 * 1000 }, (err, stdout, stderr) => {
-    cb(err, stdout, stderr);
-  });
-}
-
-client.on("clientReady", () => {
+client.once("ready", () => {
   console.log(`✅ MZ Bot online as ${client.user.tag}`);
 });
 
@@ -49,7 +41,7 @@ client.on("messageCreate", async (msg) => {
     channelId: msg.channelId,
     content: msg.content,
   });
-  
+
   try {
     if (msg.author.bot) return;
 
@@ -63,12 +55,13 @@ client.on("messageCreate", async (msg) => {
     if (!mentioned) return;
 
     // Remove menções do texto e normaliza
-    const text = msg.content.replace(/<@!?(\d+)>/g, "").trim();
+    const text = msg.content.replace(/<@!?\d+>/g, "").trim();
     const parts = text.split(/\s+/).filter(Boolean);
 
-    // Se mencionou e não escreveu nada
+    const help = "Comandos válidos: `posts create <project>` | `email last <project>`";
+
     if (parts.length === 0) {
-      await msg.reply("Uso: `@MZ posts create <project>` ou `@MZ email last <project>`");
+      await msg.reply(`❌ Comando incompleto. ${help}`);
       return;
     }
 
@@ -82,15 +75,13 @@ client.on("messageCreate", async (msg) => {
       email: new Set(["last"]),
     };
 
-    const help = "Comandos: `posts create <project>` | `email last <project>`";
-
     if (!allowedDomains.has(domain)) {
-      await msg.reply(`❌ Domínio não reconhecido. ${help}`);
+      await msg.reply(`❌ Domínio inválido. ${help}`);
       return;
     }
 
     if (!action || !allowedActions[domain].has(action)) {
-      await msg.reply(`❌ Ação não reconhecida para ${domain}. ${help}`);
+      await msg.reply(`❌ Ação inválida para ${domain}. ${help}`);
       return;
     }
 
@@ -99,25 +90,64 @@ client.on("messageCreate", async (msg) => {
       return;
     }
 
-    const jobId = `${domain}_${project}_${action}`;
+    const notionToken = process.env.NOTION_API_KEY;
+    const notionDbId = process.env.NOTION_DB_ID;
+    if (!notionToken || !notionDbId) {
+      await msg.reply("❌ Notion não configurado (NOTION_API_KEY / NOTION_DB_ID). ");
+      return;
+    }
 
-    await msg.reply(`⏳ Executando agora: \`${jobId}\``);
+    const typeMap = {
+      posts: { create: "posts_create" },
+      email: { last: "email_check" },
+    };
+    const taskType = typeMap?.[domain]?.[action];
+    if (!taskType) {
+      await msg.reply(`❌ Ação inválida para ${domain}. ${help}`);
+      return;
+    }
 
-    runForcedJob(jobId, async (err, stdout, stderr) => {
-      if (err) {
-        await msg.reply(`❌ Falhou ao executar \`${jobId}\`. Verifique os logs no servidor.`);
+    const name = `${domain} ${action} ${project}`;
+
+    const payload = {
+      parent: { database_id: notionDbId },
+      properties: {
+        Name: { title: [{ text: { content: name } }] },
+        Status: { select: { name: "queued" } },
+        Type: { select: { name: taskType } },
+        Project: { select: { name: project } },
+        RequestedBy: { select: { name: "discord" } },
+      },
+    };
+
+    try {
+      const res = await fetch("https://api.notion.com/v1/pages", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${notionToken}`,
+          "Content-Type": "application/json",
+          "Notion-Version": "2022-06-28",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        await msg.reply(`❌ Falha ao criar task no Notion. ${errText}`);
         return;
       }
-      await msg.reply(`✅ Concluído: \`${jobId}\``);
-    });
+
+      await msg.reply(`✅ Task criada no Notion: \`${taskType}\` (${project})`);
+    } catch (err) {
+      await msg.reply("❌ Erro ao criar task no Notion.");
+      console.error(err);
+    }
   } catch (e) {
-    // Evita crash silencioso
     try {
       await msg.reply("❌ Erro interno ao processar o comando.");
     } catch (_) {}
     console.error("Handler error:", e);
   }
 });
-
 
 client.login(TOKEN);
