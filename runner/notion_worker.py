@@ -145,7 +145,7 @@ def chunk_text(text: str, max_len: int = 1800) -> List[str]:
     return chunks
 
 
-def task_to_command(task_type: str, project: str, payload: str) -> List[str]:
+def task_to_command(task_type: str, project: str, payload: str, page_id: str) -> List[str]:
     if task_type == "posts_create":
         return ["python3", "agents/social-posts/scripts/generate_post.py", project]
     if task_type == "email_check":
@@ -156,7 +156,16 @@ def task_to_command(task_type: str, project: str, payload: str) -> List[str]:
             "20",
             "--status",
             "unread",
+            "--parent-task-id",
+            page_id,
         ]
+    if task_type == "email_tasks_create":
+        cmd = ["python3", "agents/email-triage/scripts/create_tasks.py", project]
+        if payload:
+            cmd.extend(["--source", payload])
+        if page_id:
+            cmd.extend(["--parent-task-id", page_id])
+        return cmd
     raise RuntimeError(f"Unknown task type: {task_type}")
 
 
@@ -192,7 +201,7 @@ def main() -> None:
         })
 
         try:
-            cmd = task_to_command(task_type, project, payload)
+            cmd = task_to_command(task_type, project, payload, page_id)
             result = run_command(cmd, cwd=REPO_ROOT)
             if result["returncode"] != 0:
                 error_text = result["stderr"] or result["stdout"] or "Unknown error"

@@ -68,7 +68,8 @@ class NotionClient:
         _request(self.api_key, "PATCH", url, payload)
 
     def create_task(self, name: str, task_type: str, project: str, status: str,
-                    requested_by: str, payload_text: str = "") -> Dict[str, Any]:
+                    requested_by: str, payload_text: str = "",
+                    parent_task_id: Optional[str] = None) -> Dict[str, Any]:
         url = f"{self.base_url}/pages"
         payload = {
             "parent": {"database_id": self.database_id},
@@ -82,6 +83,18 @@ class NotionClient:
         }
         if payload_text:
             payload["properties"]["Payload"] = {"rich_text": [{"text": {"content": payload_text}}]}
+        if parent_task_id:
+            payload["properties"]["Parent Task"] = {"relation": [{"id": parent_task_id}]}
+        return _request(self.api_key, "POST", url, payload)
+
+    def create_page(self, properties: Dict[str, Any], children: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        url = f"{self.base_url}/pages"
+        payload: Dict[str, Any] = {
+            "parent": {"database_id": self.database_id},
+            "properties": properties,
+        }
+        if children:
+            payload["children"] = children
         return _request(self.api_key, "POST", url, payload)
 
     def append_paragraphs(self, block_id: str, texts: List[str]) -> None:

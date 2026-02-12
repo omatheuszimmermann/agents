@@ -12,6 +12,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
 from llm_client import load_llm_from_env  # noqa: E402
+from notion_client import load_notion_from_env  # noqa: E402
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 AGENT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
@@ -86,14 +87,14 @@ def parse_email_lines(lines: List[str]) -> List[Dict[str, str]]:
 def classify_email(llm, email_item: Dict[str, str]) -> str:
     system_prompt = (
         "You are an email classifier. Return ONLY one label from: "
-        "suporte, novo_cliente, duvida, spam, descartavel, outro."
+        "lead, support, billing, cancellation, features, spam, others."
     )
     user_prompt = (
         "Classify this email by type.\n"
         f"Date: {email_item.get('date', '')}\n"
         f"From: {email_item.get('sender', '')}\n"
         f"Subject: {email_item.get('subject', '')}\n"
-        "Return only the label. If unsure, use 'outro'."
+        "Return only the label. If unsure, use 'others'."
     )
 
     raw = llm.chat(
@@ -106,22 +107,11 @@ def classify_email(llm, email_item: Dict[str, str]) -> str:
     )
 
     label = raw.strip().lower().replace(" ", "_")
-    allowed = {"suporte", "novo_cliente", "duvida", "spam", "descartavel", "outro"}
+    allowed = {"lead", "support", "billing", "cancellation", "features", "spam", "others"}
     if label not in allowed:
-        return "outro"
+        return "others"
     return label
 
-
-def send_discord_message(message: str) -> None:
-    notify_script = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
-    if not os.path.exists(notify_script):
-        raise RuntimeError(f"notify_discord.sh not found at {notify_script}")
-    channel_id = os.getenv("CHANNEL_ID", "").strip()
-    if not channel_id:
-        raise RuntimeError("CHANNEL_ID is not set in agents/email-triage/.env")
-    env = os.environ.copy()
-    env["MSG_ARG"] = message
-    subprocess.run([notify_script, channel_id, message], check=True, env=env)
 
 def send_error_to_discord(message: str) -> None:
     notify_script = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
@@ -134,6 +124,24 @@ def send_error_to_discord(message: str) -> None:
     env["MSG_ARG"] = message
     subprocess.run([notify_script, channel_id, message], check=False, env=env)
 
+def maybe_enqueue_task_creation(project: str, output_file: str, count: int, parent_task_id: str) -> None:
+    if count <= 0:
+        return
+    try:
+        notion = load_notion_from_env(prefix="NOTION")
+        name = f"email_tasks_create {project}"
+        notion.create_task(
+            name=name,
+            task_type="email_tasks_create",
+            project=project,
+            status="queued",
+            requested_by="system",
+            payload_text=output_file,
+            parent_task_id=parent_task_id or None,
+        )
+    except Exception as exc:
+        print(f"Failed to enqueue email_tasks_create: {exc}", file=sys.stderr)
+        send_error_to_discord(f"[email-triage] Failed to enqueue email_tasks_create: {exc}")
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Email agent: fetch and classify emails.")
@@ -142,6 +150,7 @@ def main() -> None:
     parser.add_argument("--status", choices=["all", "read", "unread"], default="all", help="Filter by status")
     parser.add_argument("--since", help="Filter emails since date (YYYY-MM-DD)")
     parser.add_argument("--before", help="Filter emails before date (YYYY-MM-DD)")
+    parser.add_argument("--parent-task-id", help="Notion page ID of the parent task", default="")
     args = parser.parse_args()
 
     env_file = os.path.join(PROJECTS_DIR, args.project, ".env")
@@ -152,6 +161,7 @@ def main() -> None:
     # Load project .env first, then base .env to fill missing values.
     load_env_file(env_file)
     load_env_file(os.path.join(AGENT_DIR, ".env"))
+    load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
 
     llm = load_llm_from_env(prefix="LLM")
 
@@ -180,7 +190,6 @@ def main() -> None:
                 seen_ids = set()
 
         results = []
-        notion_messages = []
         for item in emails:
             message_id = item.get("message_id", "")
             if message_id and message_id in seen_ids:
@@ -196,18 +205,6 @@ def main() -> None:
             }
             results.append(result)
 
-            message = (
-                f"[{label}] {result['subject']}\n"
-                f"From: {result['sender']}\n"
-                f"Date: {result['date']}"
-            )
-            try:
-                send_discord_message(message)
-                notion_messages.append(message)
-            except Exception as exc:
-                print(f"Discord notify failed: {exc}", file=sys.stderr)
-                send_error_to_discord(f"[email-triage] Discord notify failed: {exc}")
-
             if message_id:
                 seen_ids.add(message_id)
 
@@ -218,8 +215,7 @@ def main() -> None:
             json.dump(sorted(seen_ids), f, indent=2, ensure_ascii=False)
 
         print(output_file)
-        if notion_messages:
-            joined = "\n\n---\n\n".join(notion_messages)
+        maybe_enqueue_task_creation(args.project, output_file, len(results), args.parent_task_id)
             print(f"NOTION_RESULT: {joined}")
     finally:
         if os.path.exists(tmp_file):
