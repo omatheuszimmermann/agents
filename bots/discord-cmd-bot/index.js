@@ -193,7 +193,7 @@ client.on("messageCreate", async (msg) => {
       const ticket = getUniqueIdText(page, "ID");
       if (ticket) {
         const event = `${taskType} ${project}`;
-        const title = `${icon} #${ticket} ${formatDayMonth()} - ${event}`;
+        const title = `#${ticket} ${formatDayMonth()} - ${event}`;
         try {
           await fetch(`https://api.notion.com/v1/pages/${page.id}`, {
             method: "PATCH",
