@@ -216,7 +216,7 @@ def main() -> None:
 
         props: Dict[str, Any] = {
             "Subject": {"title": [{"text": {"content": subject}}]},
-            "Status": {"select": {"name": "pending"}},
+            "Status": {"status": {"name": "pending"}},
             "Project": {"select": {"name": args.project}},
             "Classification": {"select": {"name": classification}},
         }
