@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, urlparse
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
 RUNNER_DIR = os.path.join(REPO_ROOT, "runner")
-LAUNCHD_DIR = os.path.join(RUNNER_DIR, "launchd")
+LAUNCHD_DIR = os.path.expanduser("~/Library/LaunchAgents")
 STATE_DIR = os.path.join(RUNNER_DIR, "state")
 LOG_DIR = os.path.join(RUNNER_DIR, "logs")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -266,6 +266,14 @@ class Handler(SimpleHTTPRequestHandler):
             meta = WORKERS.get(worker_id)
             if not meta:
                 self._send_json({"error": "unknown_worker"}, status=404)
+                return
+            launchctl, launchctl_error = launchctl_status()
+            if launchctl_error:
+                self._send_json({"error": "launchctl_error", "detail": launchctl_error}, status=500)
+                return
+            label = meta.get("label")
+            if not label or label not in launchctl:
+                self._send_json({"error": "worker_not_loaded"}, status=409)
                 return
             os.makedirs(LOG_DIR, exist_ok=True)
             out_path = os.path.join(LOG_DIR, f"panel.{worker_id}.out")

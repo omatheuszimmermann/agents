@@ -86,6 +86,8 @@ function updateWorkerCards(payload) {
   elements.nw.lastSuccess.textContent = formatDate(nw.last_success_at);
   elements.nw.lastTasks.textContent = nw.last_tasks_seen ?? "—";
   setErrorBox(elements.nw.error, nw.last_error, nw.last_error_at);
+  elements.nw.runBtn.disabled = !nw.loaded;
+  elements.nw.runBtn.title = nw.loaded ? "" : "Carregue o job no launchd";
 
   const ns = payload.workers?.notion_scheduler || {};
   setStatusDot(elements.ns.status, ns);
@@ -100,6 +102,8 @@ function updateWorkerCards(payload) {
     elements.ns.summary.textContent = "—";
   }
   setErrorBox(elements.ns.error, ns.last_error, ns.last_error_at);
+  elements.ns.runBtn.disabled = !ns.loaded;
+  elements.ns.runBtn.title = ns.loaded ? "" : "Carregue o job no launchd";
 }
 
 function updateProcessTable(payload) {
@@ -165,7 +169,11 @@ async function runWorker(workerId, runStatusEl, runBtnEl) {
     const res = await fetch(`/api/run/${workerId}`);
     const data = await res.json();
     if (!res.ok || !data.ok) {
-      runStatusEl.textContent = "Falha ao disparar.";
+      if (data?.error === "worker_not_loaded") {
+        runStatusEl.textContent = "Job não carregado no launchd.";
+      } else {
+        runStatusEl.textContent = "Falha ao disparar.";
+      }
     } else {
       runStatusEl.textContent = `Executado em ${formatDate(data.started_at)}`;
     }
