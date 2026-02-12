@@ -26,6 +26,7 @@ Este repo usa arquivos `.env` por componente. Sempre crie o `.env` a partir do `
   - `NOTION_MAX_TASKS` (opcional)
   - `NOTION_PROJECTS` (opcional)
   - `NOTION_SCHEDULE_FILE` (opcional)
+  - `NOTION_RESULT_PROPERTY` (opcional, default `Result`)
 
 4. Agente Email (nivel do agente)
 - Arquivo: `agents/email-triage/.env`

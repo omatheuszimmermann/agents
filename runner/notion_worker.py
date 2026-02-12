@@ -109,6 +109,31 @@ def extract_notion_result(output: str) -> str:
     return ""
 
 
+def chunk_text(text: str, max_len: int = 1800) -> List[str]:
+    if not text:
+        return []
+    chunks = []
+    current = []
+    size = 0
+    for line in text.splitlines():
+        line = line.rstrip()
+        add_len = len(line) + (1 if current else 0)
+        if size + add_len > max_len and current:
+            chunks.append("\n".join(current))
+            current = [line]
+            size = len(line)
+        else:
+            if current:
+                current.append(line)
+                size += add_len
+            else:
+                current = [line]
+                size = len(line)
+    if current:
+        chunks.append("\n".join(current))
+    return chunks
+
+
 def task_to_command(task_type: str, project: str, payload: str) -> List[str]:
     if task_type == "posts_create":
         return ["python3", "agents/social-posts/scripts/generate_post.py", project]
@@ -129,6 +154,7 @@ def main() -> None:
 
     notion = load_notion_from_env(prefix="NOTION")
     max_tasks = int(os.getenv("NOTION_MAX_TASKS", "1"))
+    result_prop = os.getenv("NOTION_RESULT_PROPERTY", "Result")
     tasks = notion.query_tasks(status="queued", limit=max_tasks)
     update_state({"last_tasks_seen": len(tasks)})
 
@@ -173,8 +199,12 @@ def main() -> None:
             notion.update_page(page_id, {
                 "Status": prop_select("done"),
                 "FinishedAt": prop_date(now_iso()),
-                "Result": prop_text(notion_result[:1500]),
+                result_prop: prop_text(notion_result[:1500]),
             })
+            # Append result to page body (native text area)
+            chunks = chunk_text(notion_result, max_len=1800)
+            if chunks:
+                notion.append_paragraphs(page_id, chunks)
             log("Task done.")
         except Exception as exc:
             log(f"Task exception: {exc}")
