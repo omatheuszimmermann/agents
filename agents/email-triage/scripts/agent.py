@@ -216,7 +216,6 @@ def main() -> None:
 
         print(output_file)
         maybe_enqueue_task_creation(args.project, output_file, len(results), args.parent_task_id)
-            print(f"NOTION_RESULT: {joined}")
     finally:
         if os.path.exists(tmp_file):
             os.remove(tmp_file)
