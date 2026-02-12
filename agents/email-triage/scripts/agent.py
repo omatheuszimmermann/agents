@@ -12,7 +12,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
 from llm_client import load_llm_from_env  # noqa: E402
-from notion_client import load_notion_from_env  # noqa: E402
+from notion_client import load_notion_from_env, icon_for_task_type  # noqa: E402
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 AGENT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
@@ -153,6 +153,8 @@ def maybe_enqueue_task_creation(project: str, output_file: str, count: int, pare
             requested_by="system",
             payload_text=output_file,
             parent_task_id=parent_task_id or None,
+            title_event=f"email_tasks_create {project}",
+            icon_emoji=icon_for_task_type("email_tasks_create"),
         )
     except Exception as exc:
         print(f"Failed to enqueue email_tasks_create: {exc}", file=sys.stderr)
