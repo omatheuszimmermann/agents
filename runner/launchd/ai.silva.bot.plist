@@ -3,7 +3,7 @@
 <plist version="1.0">
   <dict>
     <key>Label</key>
-    <string>ai.mz.bot</string>
+    <string>ai.silva.bot</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -18,8 +18,8 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/matheuszimmermannai/agents/runner/logs/mz.out</string>
+    <string>/Users/matheuszimmermannai/agents/runner/logs/silva.out</string>
     <key>StandardErrorPath</key>
-    <string>/Users/matheuszimmermannai/agents/runner/logs/mz.err</string>
+    <string>/Users/matheuszimmermannai/agents/runner/logs/silva.err</string>
   </dict>
 </plist>
