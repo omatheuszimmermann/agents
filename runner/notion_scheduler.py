@@ -9,6 +9,9 @@ from typing import Dict, Any, List, Tuple
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
+STATE_DIR = os.path.join(REPO_ROOT, "runner", "state")
+STATE_FILE = os.path.join(STATE_DIR, "notion_scheduler.json")
+
 from notion_client import load_notion_from_env  # noqa: E402
 
 
@@ -35,6 +38,30 @@ def iso_z(dt: datetime.datetime) -> str:
 
 def log(message: str) -> None:
     print(f"[{iso_z(now_utc())}] {message}")
+
+
+def load_state() -> Dict[str, Any]:
+    try:
+        with open(STATE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        pass
+    return {}
+
+
+def save_state(state: Dict[str, Any]) -> None:
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2, ensure_ascii=False)
+
+
+def update_state(patch: Dict[str, Any]) -> None:
+    state = load_state()
+    state.update(patch)
+    state["updated_at"] = iso_z(now_utc())
+    save_state(state)
 
 
 def daily_window_utc() -> Tuple[str, str]:
@@ -109,6 +136,8 @@ def main() -> None:
     schedule_path = os.getenv("NOTION_SCHEDULE_FILE", os.path.join(REPO_ROOT, "runner", "notion_schedule.json"))
     rules = load_schedule(schedule_path)
 
+    created = 0
+    skipped = 0
     for project in projects_list():
         for rule in rules:
             task_type = rule.get("type", "").strip()
@@ -124,9 +153,32 @@ def main() -> None:
             if should_create_task(notion, task_type, project, window):
                 create_task(notion, task_type, project)
                 log(f"Created task: type={task_type} project={project} freq={frequency}")
+                created += 1
             else:
                 log(f"Skip (already exists): type={task_type} project={project} freq={frequency}")
+                skipped += 1
+    update_state({"last_created": created, "last_skipped": skipped})
+
+
+def safe_main() -> None:
+    update_state({"last_check_at": iso_z(now_utc()), "last_status": "running"})
+    try:
+        main()
+        update_state({
+            "last_finished_at": iso_z(now_utc()),
+            "last_success_at": iso_z(now_utc()),
+            "last_status": "ok",
+        })
+    except Exception as exc:
+        log(f"Fatal error: {exc}")
+        update_state({
+            "last_finished_at": iso_z(now_utc()),
+            "last_error_at": iso_z(now_utc()),
+            "last_error": str(exc)[:1500],
+            "last_status": "failed",
+        })
+        raise
 
 
 if __name__ == "__main__":
-    main()
+    safe_main()

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import json
 import datetime
 import subprocess
 from typing import Dict, Any, List
@@ -8,6 +9,9 @@ from typing import Dict, Any, List
 # Import Notion client
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
+
+STATE_DIR = os.path.join(REPO_ROOT, "runner", "state")
+STATE_FILE = os.path.join(STATE_DIR, "notion_worker.json")
 
 from notion_client import load_notion_from_env  # noqa: E402
 
@@ -63,6 +67,30 @@ def log(message: str) -> None:
     print(f"[{now_iso()}] {message}")
 
 
+def load_state() -> Dict[str, Any]:
+    try:
+        with open(STATE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        pass
+    return {}
+
+
+def save_state(state: Dict[str, Any]) -> None:
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2, ensure_ascii=False)
+
+
+def update_state(patch: Dict[str, Any]) -> None:
+    state = load_state()
+    state.update(patch)
+    state["updated_at"] = now_iso()
+    save_state(state)
+
+
 def run_command(command: List[str], cwd: str) -> Dict[str, Any]:
     proc = subprocess.run(command, cwd=cwd, text=True, capture_output=True)
     return {
@@ -102,9 +130,11 @@ def main() -> None:
     notion = load_notion_from_env(prefix="NOTION")
     max_tasks = int(os.getenv("NOTION_MAX_TASKS", "1"))
     tasks = notion.query_tasks(status="queued", limit=max_tasks)
+    update_state({"last_tasks_seen": len(tasks)})
 
     if not tasks:
         log("No queued tasks.")
+        update_state({"last_result": "no_tasks"})
         return
 
     for page in tasks:
@@ -154,6 +184,28 @@ def main() -> None:
                 "LastError": prop_text(str(exc)[:1500]),
             })
 
+    update_state({"last_result": "processed"})
+
+
+def safe_main() -> None:
+    update_state({"last_check_at": now_iso(), "last_status": "running"})
+    try:
+        main()
+        update_state({
+            "last_finished_at": now_iso(),
+            "last_success_at": now_iso(),
+            "last_status": "ok",
+        })
+    except Exception as exc:
+        log(f"Fatal error: {exc}")
+        update_state({
+            "last_finished_at": now_iso(),
+            "last_error_at": now_iso(),
+            "last_error": str(exc)[:1500],
+            "last_status": "failed",
+        })
+        raise
+
 
 if __name__ == "__main__":
-    main()
+    safe_main()
