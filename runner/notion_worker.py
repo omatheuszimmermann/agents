@@ -59,6 +59,10 @@ def get_prop_text(page: Dict[str, Any], key: str) -> str:
     return "".join(t.get("plain_text", "") for t in texts)
 
 
+def log(message: str) -> None:
+    print(f"[{now_iso()}] {message}")
+
+
 def run_command(command: List[str], cwd: str) -> Dict[str, Any]:
     proc = subprocess.run(command, cwd=cwd, text=True, capture_output=True)
     return {
@@ -100,6 +104,7 @@ def main() -> None:
     tasks = notion.query_tasks(status="queued", limit=max_tasks)
 
     if not tasks:
+        log("No queued tasks.")
         return
 
     for page in tasks:
@@ -109,6 +114,7 @@ def main() -> None:
         payload = get_prop_text(page, "Payload")
         run_count_raw = page.get("properties", {}).get("RunCount", {}).get("number")
         run_count = int(run_count_raw or 0) + 1
+        log(f"Running task: type={task_type} project={project} run_count={run_count}")
 
         notion.update_page(page_id, {
             "Status": prop_select("running"),
@@ -122,6 +128,7 @@ def main() -> None:
             result = run_command(cmd, cwd=REPO_ROOT)
             if result["returncode"] != 0:
                 error_text = result["stderr"] or result["stdout"] or "Unknown error"
+                log(f"Task failed: {error_text}")
                 notion.update_page(page_id, {
                     "Status": prop_select("failed"),
                     "FinishedAt": prop_date(now_iso()),
@@ -138,7 +145,9 @@ def main() -> None:
                 "FinishedAt": prop_date(now_iso()),
                 "Result": prop_text(notion_result[:1500]),
             })
+            log("Task done.")
         except Exception as exc:
+            log(f"Task exception: {exc}")
             notion.update_page(page_id, {
                 "Status": prop_select("failed"),
                 "FinishedAt": prop_date(now_iso()),

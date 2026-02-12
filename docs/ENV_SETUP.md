@@ -17,14 +17,24 @@ Este repo usa arquivos `.env` por componente. Sempre crie o `.env` a partir do `
   - `DISCORD_TOKEN` (ou)
   - `DISCORD_WEBHOOK_URL`
 
-3. Agente Email (nivel do agente)
+3. Integracao Notion (tasks)
+- Arquivo: `integrations/notion/.env`
+- Exemplo: `integrations/notion/.env.example`
+- Variaveis:
+  - `NOTION_API_KEY`
+  - `NOTION_DB_ID`
+  - `NOTION_MAX_TASKS` (opcional)
+  - `NOTION_PROJECTS` (opcional)
+  - `NOTION_SCHEDULE_FILE` (opcional)
+
+4. Agente Email (nivel do agente)
 - Arquivo: `agents/email-triage/.env`
 - Exemplo: `agents/email-triage/.env.example`
 - Variaveis:
   - `CHANNEL_ID` (canal para notificacoes)
   - `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`
 
-4. Agente Email (nivel do projeto)
+5. Agente Email (nivel do projeto)
 - Arquivo: `agents/email-triage/projects/<projeto>/.env`
 - Exemplo: `agents/email-triage/projects/<projeto>/.env.example`
 - Variaveis:
@@ -32,7 +42,7 @@ Este repo usa arquivos `.env` por componente. Sempre crie o `.env` a partir do `
   - `IMAP_HOST`, `IMAP_PORT`, `IMAP_SECURE`
   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`
 
-5. Agente Social Posts
+6. Agente Social Posts
 - Arquivo: `agents/social-posts/.env`
 - Exemplo: `agents/social-posts/.env.example`
 - Variaveis:

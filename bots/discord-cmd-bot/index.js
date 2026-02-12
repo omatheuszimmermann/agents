@@ -32,12 +32,26 @@ const client = new Client({
   ],
 });
 
-client.once("ready", () => {
-  console.log(`✅ MZ Bot online as ${client.user.tag}`);
-});
+function ts() {
+  return new Date().toISOString();
+}
+
+function log(...args) {
+  console.log(`[${ts()}]`, ...args);
+}
+
+function logError(...args) {
+  console.error(`[${ts()}]`, ...args);
+}
+
+function handleReady() {
+  log(`✅ MZ Bot online as ${client.user.tag}`);
+}
+
+client.once("clientReady", handleReady);
 
 client.on("messageCreate", async (msg) => {
-  console.log("Message:", {
+  log("Message:", {
     channelId: msg.channelId,
     content: msg.content,
   });
@@ -93,7 +107,7 @@ client.on("messageCreate", async (msg) => {
     const notionToken = process.env.NOTION_API_KEY;
     const notionDbId = process.env.NOTION_DB_ID;
     if (!notionToken || !notionDbId) {
-      await msg.reply("❌ Notion não configurado (NOTION_API_KEY / NOTION_DB_ID). ");
+      await msg.reply("❌ Notion não configurado (NOTION_API_KEY / NOTION_DB_ID).");
       return;
     }
 
@@ -140,13 +154,13 @@ client.on("messageCreate", async (msg) => {
       await msg.reply(`✅ Task criada no Notion: \`${taskType}\` (${project})`);
     } catch (err) {
       await msg.reply("❌ Erro ao criar task no Notion.");
-      console.error(err);
+      logError(err);
     }
   } catch (e) {
     try {
       await msg.reply("❌ Erro interno ao processar o comando.");
     } catch (_) {}
-    console.error("Handler error:", e);
+    logError("Handler error:", e);
   }
 });
 
