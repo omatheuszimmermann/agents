@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painel de Processos</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <main class="page">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Agentes e Workers</p>
+        <h1>Painel de Processos</h1>
+        <p class="subtitle">Monitoramento ao vivo dos workers do Notion e processos registrados no launchd.</p>
+      </div>
+      <div class="top-actions">
+        <button class="btn ghost" id="refreshBtn">Atualizar</button>
+        <button class="btn" id="logsBtn">Ver logs</button>
+      </div>
+    </header>
+
+    <section class="cards">
+      <article class="card" id="notionWorkerCard">
+        <div class="card-header">
+          <div>
+            <h2>Notion Worker</h2>
+            <p class="muted">Verifica tasks em fila e executa agentes.</p>
+          </div>
+          <span class="status-dot" id="nw-status-dot" title="Status"></span>
+        </div>
+        <div class="metrics">
+          <div>
+            <span class="label">Ultima verificacao</span>
+            <span class="value" id="nw-last-check">—</span>
+          </div>
+          <div>
+            <span class="label">Proxima verificacao (aprox.)</span>
+            <span class="value" id="nw-next-check">—</span>
+          </div>
+          <div>
+            <span class="label">Ultimo sucesso</span>
+            <span class="value" id="nw-last-success">—</span>
+          </div>
+          <div>
+            <span class="label">Ultimas tasks vistas</span>
+            <span class="value" id="nw-last-tasks">—</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="nw-run-btn">Executar agora</button>
+          <span class="hint" id="nw-run-status">—</span>
+        </div>
+        <div class="alert" id="nw-error" hidden></div>
+      </article>
+
+      <article class="card" id="notionSchedulerCard">
+        <div class="card-header">
+          <div>
+            <h2>Notion Scheduler</h2>
+            <p class="muted">Cria tasks recorrentes por periodo.</p>
+          </div>
+          <span class="status-dot" id="ns-status-dot" title="Status"></span>
+        </div>
+        <div class="metrics">
+          <div>
+            <span class="label">Ultima verificacao</span>
+            <span class="value" id="ns-last-check">—</span>
+          </div>
+          <div>
+            <span class="label">Proxima verificacao (aprox.)</span>
+            <span class="value" id="ns-next-check">—</span>
+          </div>
+          <div>
+            <span class="label">Ultimo sucesso</span>
+            <span class="value" id="ns-last-success">—</span>
+          </div>
+          <div>
+            <span class="label">Tasks criadas / puladas</span>
+            <span class="value" id="ns-last-summary">—</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="ns-run-btn">Executar agora</button>
+          <span class="hint" id="ns-run-status">—</span>
+        </div>
+        <div class="alert" id="ns-error" hidden></div>
+      </article>
+    </section>
+
+    <section class="card table-card" id="processTableCard">
+      <div class="card-header">
+        <div>
+          <h2>Processos do launchd</h2>
+          <p class="muted">Status em tempo real dos jobs instalados.</p>
+        </div>
+        <span class="muted" id="launchctlHint">—</span>
+      </div>
+      <div class="table" id="processTable">
+        <div class="table-head">
+          <span>Processo</span>
+          <span>Intervalo</span>
+          <span>Status</span>
+        </div>
+        <div class="table-body" id="processRows"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="logsModal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h3>Logs do runner</h3>
+          <p class="muted">Arquivos em <code>runner/logs</code></p>
+        </div>
+        <button class="btn ghost" id="closeLogs">Fechar</button>
+      </div>
+      <div class="logs-grid">
+        <div class="logs-list" id="logsList"></div>
+        <div class="logs-viewer">
+          <div class="logs-toolbar">
+            <span class="muted" id="logViewerTitle">Selecione um log</span>
+            <button class="btn ghost" id="reloadLog" disabled>Recarregar</button>
+          </div>
+          <pre class="logs-content" id="logContent">Escolha um arquivo para visualizar.</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
