@@ -31,7 +31,7 @@ def load_env_file(path: str) -> None:
 
 
 def now_iso() -> str:
-    return datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def prop_select(name: str) -> Dict[str, Any]:
