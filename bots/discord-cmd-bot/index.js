@@ -190,7 +190,7 @@ client.on("messageCreate", async (msg) => {
       }
 
       const page = await res.json();
-      const ticket = getUniqueIdText(page, process.env.NOTION_TASK_ID_PROPERTY || "ID");
+      const ticket = getUniqueIdText(page, "ID");
       if (ticket) {
         const event = `${taskType} ${project}`;
         const title = `${icon} #${ticket} ${formatDayMonth()} - ${event}`;

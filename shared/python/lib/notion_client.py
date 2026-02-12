@@ -72,9 +72,7 @@ class NotionClient:
                     requested_by: str, payload_text: str = "",
                     parent_task_id: Optional[str] = None,
                     title_event: Optional[str] = None,
-                    icon_emoji: Optional[str] = None,
-                    title_prop: str = "Name",
-                    id_prop: Optional[str] = None) -> Dict[str, Any]:
+                    icon_emoji: Optional[str] = None) -> Dict[str, Any]:
         url = f"{self.base_url}/pages"
         payload = {
             "parent": {"database_id": self.database_id},
@@ -94,12 +92,11 @@ class NotionClient:
             payload["properties"]["Parent Task"] = {"relation": [{"id": parent_task_id}]}
         page = _request(self.api_key, "POST", url, payload)
         if title_event:
-            prop_name = id_prop or os.getenv("NOTION_TASK_ID_PROPERTY", "ID")
-            ticket = _get_unique_id_text(page, prop_name)
+            ticket = _get_unique_id_text(page, "ID")
             if ticket:
                 title = _format_task_title(ticket, title_event, icon_emoji)
                 self.update_page(page.get("id"), {
-                    title_prop: {"title": [{"text": {"content": title}}]},
+                    "Name": {"title": [{"text": {"content": title}}]},
                 })
         return page
 
