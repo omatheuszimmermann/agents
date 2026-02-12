@@ -7,7 +7,6 @@ import urllib.error
 from typing import Any, Dict, List, Optional
 import ssl
 import certifi
-import datetime
 
 NOTION_VERSION = "2022-06-28"
 
@@ -91,13 +90,6 @@ class NotionClient:
         if parent_task_id:
             payload["properties"]["Parent Task"] = {"relation": [{"id": parent_task_id}]}
         page = _request(self.api_key, "POST", url, payload)
-        if title_event:
-            ticket = _get_unique_id_text(page, "ID")
-            if ticket:
-                title = _format_task_title(ticket, title_event)
-                self.update_page(page.get("id"), {
-                    "Name": {"title": [{"text": {"content": title}}]},
-                })
         return page
 
     def create_page(self, properties: Dict[str, Any], children: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
@@ -153,8 +145,3 @@ def _get_unique_id_text(page: Dict[str, Any], prop_name: str) -> str:
     if prefix:
         return f"{prefix}-{number}"
     return str(number)
-
-
-def _format_task_title(ticket: str, event: str) -> str:
-    date_str = datetime.datetime.now().strftime("%d/%m")
-    return f"#{ticket} {date_str} - {event}".strip()
