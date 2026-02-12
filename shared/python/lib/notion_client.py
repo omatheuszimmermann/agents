@@ -97,7 +97,7 @@ class NotionClient:
             prop_name = id_prop or os.getenv("NOTION_TASK_ID_PROPERTY", "ID")
             ticket = _get_unique_id_text(page, prop_name)
             if ticket:
-                title = _format_task_title(ticket, title_event)
+                title = _format_task_title(ticket, title_event, icon_emoji)
                 self.update_page(page.get("id"), {
                     title_prop: {"title": [{"text": {"content": title}}]},
                 })
@@ -158,6 +158,8 @@ def _get_unique_id_text(page: Dict[str, Any], prop_name: str) -> str:
     return str(number)
 
 
-def _format_task_title(ticket: str, event: str) -> str:
+def _format_task_title(ticket: str, event: str, icon_emoji: Optional[str]) -> str:
     date_str = datetime.datetime.now().strftime("%d/%m")
+    if icon_emoji:
+        return f"{icon_emoji} #{ticket} {date_str} - {event}".strip()
     return f"#{ticket} {date_str} - {event}".strip()
