@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
 STATE_DIR = os.path.join(REPO_ROOT, "runner", "state")
 STATE_FILE = os.path.join(STATE_DIR, "notion_worker.json")
+NOTIFY_SCRIPT = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
 
 from notion_client import load_notion_from_env  # noqa: E402
 
@@ -65,6 +66,16 @@ def get_prop_text(page: Dict[str, Any], key: str) -> str:
 
 def log(message: str) -> None:
     print(f"[{now_iso()}] {message}")
+
+def send_error_to_discord(message: str) -> None:
+    channel_id = os.getenv("DISCORD_LOG_CHANNEL_ID", "").strip()
+    if not channel_id:
+        return
+    if not os.path.exists(NOTIFY_SCRIPT):
+        return
+    env = os.environ.copy()
+    env["MSG_ARG"] = message
+    subprocess.run([NOTIFY_SCRIPT, channel_id, message], check=False, env=env)
 
 
 def load_state() -> Dict[str, Any]:
@@ -151,6 +162,7 @@ def task_to_command(task_type: str, project: str, payload: str) -> List[str]:
 
 def main() -> None:
     load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
+    load_env_file(os.path.join(REPO_ROOT, "integrations", "discord", ".env"))
 
     notion = load_notion_from_env(prefix="NOTION")
     max_tasks = int(os.getenv("NOTION_MAX_TASKS", "1"))
@@ -185,6 +197,9 @@ def main() -> None:
             if result["returncode"] != 0:
                 error_text = result["stderr"] or result["stdout"] or "Unknown error"
                 log(f"Task failed: {error_text}")
+                send_error_to_discord(
+                    f"[notion_worker] Task failed: type={task_type} project={project}\n{error_text}"
+                )
                 notion.update_page(page_id, {
                     "Status": prop_select("failed"),
                     "FinishedAt": prop_date(now_iso()),
@@ -228,6 +243,7 @@ def safe_main() -> None:
         })
     except Exception as exc:
         log(f"Fatal error: {exc}")
+        send_error_to_discord(f"[notion_worker] Fatal error: {exc}")
         update_state({
             "last_finished_at": now_iso(),
             "last_error_at": now_iso(),

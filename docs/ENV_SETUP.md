@@ -16,6 +16,7 @@ Este repo usa arquivos `.env` por componente. Sempre crie o `.env` a partir do `
 - Variaveis:
   - `DISCORD_TOKEN` (ou)
   - `DISCORD_WEBHOOK_URL`
+  - `DISCORD_LOG_CHANNEL_ID` (canal de erros)
 
 3. Integracao Notion (tasks)
 - Arquivo: `integrations/notion/.env`

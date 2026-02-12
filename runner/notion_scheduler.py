@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
 STATE_DIR = os.path.join(REPO_ROOT, "runner", "state")
 STATE_FILE = os.path.join(STATE_DIR, "notion_scheduler.json")
+NOTIFY_SCRIPT = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
 
 from notion_client import load_notion_from_env  # noqa: E402
 
@@ -38,6 +39,16 @@ def iso_z(dt: datetime.datetime) -> str:
 
 def log(message: str) -> None:
     print(f"[{iso_z(now_utc())}] {message}")
+
+def send_error_to_discord(message: str) -> None:
+    channel_id = os.getenv("DISCORD_LOG_CHANNEL_ID", "").strip()
+    if not channel_id:
+        return
+    if not os.path.exists(NOTIFY_SCRIPT):
+        return
+    env = os.environ.copy()
+    env["MSG_ARG"] = message
+    subprocess.run([NOTIFY_SCRIPT, channel_id, message], check=False, env=env)
 
 
 def load_state() -> Dict[str, Any]:
@@ -132,6 +143,7 @@ def create_task(notion, task_type: str, project: str) -> None:
 
 def main() -> None:
     load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
+    load_env_file(os.path.join(REPO_ROOT, "integrations", "discord", ".env"))
     notion = load_notion_from_env(prefix="NOTION")
     schedule_path = os.getenv("NOTION_SCHEDULE_FILE", os.path.join(REPO_ROOT, "runner", "notion_schedule.json"))
     rules = load_schedule(schedule_path)
@@ -171,6 +183,7 @@ def safe_main() -> None:
         })
     except Exception as exc:
         log(f"Fatal error: {exc}")
+        send_error_to_discord(f"[notion_scheduler] Fatal error: {exc}")
         update_state({
             "last_finished_at": iso_z(now_utc()),
             "last_error_at": iso_z(now_utc()),
