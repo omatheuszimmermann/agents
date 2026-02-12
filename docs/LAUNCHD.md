@@ -15,7 +15,7 @@ launchctl load ~/Library/LaunchAgents/<arquivo>.plist
 
 ## Arquivos existentes
 
-- `runner/launchd/ai.mz.bot.plist`
+- `runner/launchd/ai.silva.bot.plist`
   - Mantém o bot do Discord ativo.
 - `runner/launchd/ai.agents.notion.worker.plist`
   - Worker que consome tasks do Notion periodicamente.

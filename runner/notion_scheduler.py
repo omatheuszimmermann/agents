@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
 STATE_DIR = os.path.join(REPO_ROOT, "runner", "state")
 STATE_FILE = os.path.join(STATE_DIR, "notion_scheduler.json")
+NOTIFY_SCRIPT = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
 
 from notion_client import load_notion_from_env  # noqa: E402
 
@@ -29,7 +30,7 @@ def load_env_file(path: str) -> None:
 
 
 def now_utc() -> datetime.datetime:
-    return datetime.datetime.now(datetime.UTC)
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 def iso_z(dt: datetime.datetime) -> str:
@@ -38,6 +39,16 @@ def iso_z(dt: datetime.datetime) -> str:
 
 def log(message: str) -> None:
     print(f"[{iso_z(now_utc())}] {message}")
+
+def send_error_to_discord(message: str) -> None:
+    channel_id = os.getenv("DISCORD_LOG_CHANNEL_ID", "").strip()
+    if not channel_id:
+        return
+    if not os.path.exists(NOTIFY_SCRIPT):
+        return
+    env = os.environ.copy()
+    env["MSG_ARG"] = message
+    subprocess.run([NOTIFY_SCRIPT, channel_id, message], check=False, env=env)
 
 
 def load_state() -> Dict[str, Any]:
@@ -66,7 +77,7 @@ def update_state(patch: Dict[str, Any]) -> None:
 
 def daily_window_utc() -> Tuple[str, str]:
     n = now_utc().date()
-    start = datetime.datetime(n.year, n.month, n.day, tzinfo=datetime.UTC)
+    start = datetime.datetime(n.year, n.month, n.day, tzinfo=datetime.timezone.utc)
     end = start + datetime.timedelta(days=1)
     return iso_z(start), iso_z(end)
 
@@ -83,8 +94,8 @@ def twice_week_window_utc() -> Tuple[str, str]:
         # Window 2: Thu-Mon 00:00
         start = today - datetime.timedelta(days=(dow - 3))
         end = start + datetime.timedelta(days=4)
-    start_dt = datetime.datetime(start.year, start.month, start.day, tzinfo=datetime.UTC)
-    end_dt = datetime.datetime(end.year, end.month, end.day, tzinfo=datetime.UTC)
+    start_dt = datetime.datetime(start.year, start.month, start.day, tzinfo=datetime.timezone.utc)
+    end_dt = datetime.datetime(end.year, end.month, end.day, tzinfo=datetime.timezone.utc)
     return iso_z(start_dt), iso_z(end_dt)
 
 
@@ -132,6 +143,7 @@ def create_task(notion, task_type: str, project: str) -> None:
 
 def main() -> None:
     load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
+    load_env_file(os.path.join(REPO_ROOT, "integrations", "discord", ".env"))
     notion = load_notion_from_env(prefix="NOTION")
     schedule_path = os.getenv("NOTION_SCHEDULE_FILE", os.path.join(REPO_ROOT, "runner", "notion_schedule.json"))
     rules = load_schedule(schedule_path)
@@ -171,6 +183,7 @@ def safe_main() -> None:
         })
     except Exception as exc:
         log(f"Fatal error: {exc}")
+        send_error_to_discord(f"[notion_scheduler] Fatal error: {exc}")
         update_state({
             "last_finished_at": iso_z(now_utc()),
             "last_error_at": iso_z(now_utc()),

@@ -44,6 +44,18 @@ function logError(...args) {
   console.error(`[${ts()}]`, ...args);
 }
 
+async function sendErrorToDiscord(message) {
+  const channelId = process.env.DISCORD_LOG_CHANNEL_ID;
+  if (!channelId) return;
+  try {
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased()) return;
+    await channel.send(message);
+  } catch (err) {
+    logError("Failed to send error to log channel:", err);
+  }
+}
+
 function handleReady() {
   log(`✅ MZ Bot online as ${client.user.tag}`);
 }
@@ -148,18 +160,21 @@ client.on("messageCreate", async (msg) => {
       if (!res.ok) {
         const errText = await res.text();
         await msg.reply(`❌ Falha ao criar task no Notion. ${errText}`);
+        await sendErrorToDiscord(`[bot] Notion create failed: ${errText}`);
         return;
       }
 
       await msg.reply(`✅ Task criada no Notion: \`${taskType}\` (${project})`);
     } catch (err) {
       await msg.reply("❌ Erro ao criar task no Notion.");
+      await sendErrorToDiscord(`[bot] Notion error: ${err?.message || err}`);
       logError(err);
     }
   } catch (e) {
     try {
       await msg.reply("❌ Erro interno ao processar o comando.");
     } catch (_) {}
+    await sendErrorToDiscord(`[bot] Handler error: ${e?.message || e}`);
     logError("Handler error:", e);
   }
 });

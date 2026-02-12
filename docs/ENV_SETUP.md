@@ -16,6 +16,7 @@ Este repo usa arquivos `.env` por componente. Sempre crie o `.env` a partir do `
 - Variaveis:
   - `DISCORD_TOKEN` (ou)
   - `DISCORD_WEBHOOK_URL`
+  - `DISCORD_LOG_CHANNEL_ID` (canal de erros)
 
 3. Integracao Notion (tasks)
 - Arquivo: `integrations/notion/.env`
@@ -26,6 +27,7 @@ Este repo usa arquivos `.env` por componente. Sempre crie o `.env` a partir do `
   - `NOTION_MAX_TASKS` (opcional)
   - `NOTION_PROJECTS` (opcional)
   - `NOTION_SCHEDULE_FILE` (opcional)
+  - `NOTION_RESULT_PROPERTY` (opcional, default `Result`)
 
 4. Agente Email (nivel do agente)
 - Arquivo: `agents/email-triage/.env`

@@ -84,6 +84,21 @@ class NotionClient:
             payload["properties"]["Payload"] = {"rich_text": [{"text": {"content": payload_text}}]}
         return _request(self.api_key, "POST", url, payload)
 
+    def append_paragraphs(self, block_id: str, texts: List[str]) -> None:
+        if not texts:
+            return
+        url = f"{self.base_url}/blocks/{block_id}/children"
+        children = []
+        for text in texts:
+            children.append({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{"type": "text", "text": {"content": text}}],
+                },
+            })
+        _request(self.api_key, "PATCH", url, {"children": children})
+
 
 def load_notion_from_env(prefix: str = "NOTION") -> NotionClient:
     api_key = os.getenv(f"{prefix}_API_KEY")

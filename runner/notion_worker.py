@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
 STATE_DIR = os.path.join(REPO_ROOT, "runner", "state")
 STATE_FILE = os.path.join(STATE_DIR, "notion_worker.json")
+NOTIFY_SCRIPT = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
 
 from notion_client import load_notion_from_env  # noqa: E402
 
@@ -30,7 +31,7 @@ def load_env_file(path: str) -> None:
 
 
 def now_iso() -> str:
-    return datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def prop_select(name: str) -> Dict[str, Any]:
@@ -65,6 +66,16 @@ def get_prop_text(page: Dict[str, Any], key: str) -> str:
 
 def log(message: str) -> None:
     print(f"[{now_iso()}] {message}")
+
+def send_error_to_discord(message: str) -> None:
+    channel_id = os.getenv("DISCORD_LOG_CHANNEL_ID", "").strip()
+    if not channel_id:
+        return
+    if not os.path.exists(NOTIFY_SCRIPT):
+        return
+    env = os.environ.copy()
+    env["MSG_ARG"] = message
+    subprocess.run([NOTIFY_SCRIPT, channel_id, message], check=False, env=env)
 
 
 def load_state() -> Dict[str, Any]:
@@ -109,6 +120,31 @@ def extract_notion_result(output: str) -> str:
     return ""
 
 
+def chunk_text(text: str, max_len: int = 1800) -> List[str]:
+    if not text:
+        return []
+    chunks = []
+    current = []
+    size = 0
+    for line in text.splitlines():
+        line = line.rstrip()
+        add_len = len(line) + (1 if current else 0)
+        if size + add_len > max_len and current:
+            chunks.append("\n".join(current))
+            current = [line]
+            size = len(line)
+        else:
+            if current:
+                current.append(line)
+                size += add_len
+            else:
+                current = [line]
+                size = len(line)
+    if current:
+        chunks.append("\n".join(current))
+    return chunks
+
+
 def task_to_command(task_type: str, project: str, payload: str) -> List[str]:
     if task_type == "posts_create":
         return ["python3", "agents/social-posts/scripts/generate_post.py", project]
@@ -126,9 +162,11 @@ def task_to_command(task_type: str, project: str, payload: str) -> List[str]:
 
 def main() -> None:
     load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
+    load_env_file(os.path.join(REPO_ROOT, "integrations", "discord", ".env"))
 
     notion = load_notion_from_env(prefix="NOTION")
     max_tasks = int(os.getenv("NOTION_MAX_TASKS", "1"))
+    result_prop = os.getenv("NOTION_RESULT_PROPERTY", "Result")
     tasks = notion.query_tasks(status="queued", limit=max_tasks)
     update_state({"last_tasks_seen": len(tasks)})
 
@@ -159,6 +197,9 @@ def main() -> None:
             if result["returncode"] != 0:
                 error_text = result["stderr"] or result["stdout"] or "Unknown error"
                 log(f"Task failed: {error_text}")
+                send_error_to_discord(
+                    f"[notion_worker] Task failed: type={task_type} project={project}\n{error_text}"
+                )
                 notion.update_page(page_id, {
                     "Status": prop_select("failed"),
                     "FinishedAt": prop_date(now_iso()),
@@ -173,8 +214,12 @@ def main() -> None:
             notion.update_page(page_id, {
                 "Status": prop_select("done"),
                 "FinishedAt": prop_date(now_iso()),
-                "Result": prop_text(notion_result[:1500]),
+                result_prop: prop_text(notion_result[:1500]),
             })
+            # Append result to page body (native text area)
+            chunks = chunk_text(notion_result, max_len=1800)
+            if chunks:
+                notion.append_paragraphs(page_id, chunks)
             log("Task done.")
         except Exception as exc:
             log(f"Task exception: {exc}")
@@ -198,6 +243,7 @@ def safe_main() -> None:
         })
     except Exception as exc:
         log(f"Fatal error: {exc}")
+        send_error_to_discord(f"[notion_worker] Fatal error: {exc}")
         update_state({
             "last_finished_at": now_iso(),
             "last_error_at": now_iso(),

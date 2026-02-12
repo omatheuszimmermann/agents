@@ -30,6 +30,17 @@ def load_env_file(path: str) -> None:
             k, v = line.split("=", 1)
             os.environ.setdefault(k.strip(), v.strip())
 
+def send_error_to_discord(message: str) -> None:
+    notify_script = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
+    if not os.path.exists(notify_script):
+        return
+    channel_id = os.getenv("DISCORD_LOG_CHANNEL_ID", "").strip()
+    if not channel_id:
+        return
+    env = os.environ.copy()
+    env["MSG_ARG"] = message
+    subprocess.run([notify_script, channel_id, message], check=False, env=env)
+
 
 def read_file(path: str) -> str:
     with open(path, "r", encoding="utf-8") as f:
@@ -302,14 +313,13 @@ def main():
     print(out_file)
     try:
         normalized_content = render_output_markdown(post_number, sections)
-        first_message, prompt_message = build_discord_messages(normalized_content, post_number)
-        if prompt_message:
-            notion_text = f"{first_message}\n\n{prompt_message}"
-        else:
-            notion_text = first_message
-        print(f"NOTION_RESULT: {notion_text}")
+        print(f"NOTION_RESULT: {normalized_content}")
     except Exception:
         pass
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:
+        send_error_to_discord(f"[social-posts] Fatal error: {exc}")
+        raise

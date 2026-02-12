@@ -123,6 +123,17 @@ def send_discord_message(message: str) -> None:
     env["MSG_ARG"] = message
     subprocess.run([notify_script, channel_id, message], check=True, env=env)
 
+def send_error_to_discord(message: str) -> None:
+    notify_script = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
+    if not os.path.exists(notify_script):
+        return
+    channel_id = os.getenv("DISCORD_LOG_CHANNEL_ID", "").strip()
+    if not channel_id:
+        return
+    env = os.environ.copy()
+    env["MSG_ARG"] = message
+    subprocess.run([notify_script, channel_id, message], check=False, env=env)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Email agent: fetch and classify emails.")
@@ -195,6 +206,7 @@ def main() -> None:
                 notion_messages.append(message)
             except Exception as exc:
                 print(f"Discord notify failed: {exc}", file=sys.stderr)
+                send_error_to_discord(f"[email-triage] Discord notify failed: {exc}")
 
             if message_id:
                 seen_ids.add(message_id)
@@ -215,4 +227,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:
+        send_error_to_discord(f"[email-triage] Fatal error: {exc}")
+        raise
