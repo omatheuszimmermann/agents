@@ -6,6 +6,9 @@ import argparse
 import importlib
 from email.header import decode_header
 from typing import List, Tuple
+import json
+import re
+import html
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 AGENT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
@@ -65,6 +68,55 @@ def _import_stdlib_email():
         sys.path = original_sys_path
 
 
+def _decode_part(payload, charset: str) -> str:
+    if payload is None:
+        return ""
+    if isinstance(payload, bytes):
+        try:
+            return payload.decode(charset or "utf-8", errors="replace")
+        except Exception:
+            return payload.decode("utf-8", errors="replace")
+    return str(payload)
+
+
+def _strip_html(value: str) -> str:
+    if not value:
+        return ""
+    text = re.sub(r"(?is)<(script|style).*?>.*?</\\1>", "", value)
+    text = re.sub(r"(?s)<[^>]+>", " ", text)
+    text = html.unescape(text)
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _extract_text_body(msg) -> str:
+    if msg.is_multipart():
+        text_parts = []
+        html_parts = []
+        for part in msg.walk():
+            ctype = part.get_content_type()
+            disp = (part.get("Content-Disposition", "") or "").lower()
+            if "attachment" in disp:
+                continue
+            charset = part.get_content_charset()
+            payload = part.get_payload(decode=True)
+            if ctype == "text/plain":
+                text_parts.append(_decode_part(payload, charset))
+            elif ctype == "text/html":
+                html_parts.append(_decode_part(payload, charset))
+        if text_parts:
+            return "\n\n".join(t.strip() for t in text_parts if t and t.strip()).strip()
+        if html_parts:
+            return _strip_html("\n\n".join(html_parts))
+        return ""
+    charset = msg.get_content_charset()
+    payload = msg.get_payload(decode=True)
+    if msg.get_content_type() == "text/html":
+        return _strip_html(_decode_part(payload, charset))
+    return _decode_part(payload, charset).strip()
+
+
 def _to_imap_date(iso_date: str) -> str:
     try:
         parts = iso_date.split("-")
@@ -83,7 +135,7 @@ def _to_imap_date(iso_date: str) -> str:
         raise RuntimeError("Date must be in YYYY-MM-DD format") from exc
 
 
-def fetch_email_headers(limit: int, status: str, since: str, before: str) -> List[Tuple[str, str, str]]:
+def fetch_email_headers(limit: int, status: str, since: str, before: str) -> List[Tuple[str, str, str, str]]:
     host = os.getenv("IMAP_HOST", "").strip()
     if not host:
         raise RuntimeError("IMAP_HOST is required in the project .env")
@@ -132,14 +184,11 @@ def fetch_email_headers(limit: int, status: str, since: str, before: str) -> Lis
     if limit > 0:
         ids = ids[-limit:]
 
-    results: List[Tuple[str, str, str]] = []
+    results: List[Tuple[str, str, str, str]] = []
     email_module = _import_stdlib_email()
 
     for msg_id in reversed(ids):
-        status, msg_data = mail.fetch(
-            msg_id,
-            "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)])",
-        )
+        status, msg_data = mail.fetch(msg_id, "(BODY.PEEK[])")
         if status != "OK" or not msg_data:
             continue
         msg_bytes = msg_data[0][1]
@@ -148,7 +197,8 @@ def fetch_email_headers(limit: int, status: str, since: str, before: str) -> Lis
         sender = _decode_header(msg.get("From", ""))
         date = _decode_header(msg.get("Date", ""))
         message_id = _decode_header(msg.get("Message-ID", ""))
-        results.append((date, sender, subject, message_id))
+        body = _extract_text_body(msg)
+        results.append((date, sender, subject, message_id, body))
 
     mail.logout()
     return results
@@ -183,8 +233,15 @@ def main() -> None:
         print("No emails found.")
         return
 
-    for idx, (date, sender, subject, message_id) in enumerate(headers, start=1):
-        print(f"{idx}. {date} | {sender} | {subject} | {message_id}")
+    for idx, (date, sender, subject, message_id, body) in enumerate(headers, start=1):
+        payload = {
+            "date": date,
+            "sender": sender,
+            "subject": subject,
+            "message_id": message_id,
+            "body": body,
+        }
+        print(json.dumps(payload, ensure_ascii=False))
 
 
 if __name__ == "__main__":

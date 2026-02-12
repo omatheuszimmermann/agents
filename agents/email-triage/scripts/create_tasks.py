@@ -133,6 +133,11 @@ def build_body_text(item: Dict[str, str], project: str) -> str:
         f"Classification: {item.get('type', '')}",
         f"Project: {project}",
     ]
+    body = item.get("body", "")
+    if body:
+        lines.append("")
+        lines.append("Body:")
+        lines.append(body)
     return "\n".join(lines)
 
 

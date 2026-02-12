@@ -63,6 +63,20 @@ def run_email_fetch(project: str, limit: int, status: str, since: str, before: s
 def parse_email_lines(lines: List[str]) -> List[Dict[str, str]]:
     parsed = []
     for line in lines:
+        if line.startswith("{") and line.endswith("}"):
+            try:
+                obj = json.loads(line)
+                if isinstance(obj, dict):
+                    parsed.append({
+                        "date": str(obj.get("date", "")),
+                        "sender": str(obj.get("sender", "")),
+                        "subject": str(obj.get("subject", "")),
+                        "message_id": str(obj.get("message_id", "")),
+                        "body": str(obj.get("body", "")),
+                    })
+                    continue
+            except Exception:
+                pass
         # Expected: "1. date | sender | subject | message_id"
         if ". " in line:
             _, rest = line.split(". ", 1)
@@ -80,6 +94,7 @@ def parse_email_lines(lines: List[str]) -> List[Dict[str, str]]:
             "sender": sender,
             "subject": subject,
             "message_id": message_id,
+            "body": "",
         })
     return parsed
 
@@ -201,6 +216,7 @@ def main() -> None:
                 "sender": item.get("sender", ""),
                 "subject": item.get("subject", ""),
                 "message_id": message_id,
+                "body": item.get("body", ""),
                 "type": label,
             }
             results.append(result)
