@@ -152,18 +152,24 @@ def main() -> None:
 
     created = 0
     skipped = 0
-    for project in projects_list():
-        for rule in rules:
-            task_type = rule.get("type", "").strip()
-            frequency = rule.get("frequency", "").strip()
-            if not task_type or not frequency:
-                continue
-            if frequency == "daily":
-                window = daily_window_utc()
-            elif frequency == "twice_per_week":
-                window = twice_week_window_utc()
-            else:
-                continue
+    for rule in rules:
+        task_type = rule.get("type", "").strip()
+        frequency = rule.get("frequency", "").strip()
+        if not task_type or not frequency:
+            continue
+        if frequency == "daily":
+            window = daily_window_utc()
+        elif frequency == "twice_per_week":
+            window = twice_week_window_utc()
+        else:
+            continue
+
+        if task_type in {"content_refresh", "lesson_send"}:
+            projects = ["languages"]
+        else:
+            projects = projects_list()
+
+        for project in projects:
             if should_create_task(notion, task_type, project, window):
                 create_task(notion, task_type, project)
                 log(f"Created task: type={task_type} project={project} freq={frequency}")

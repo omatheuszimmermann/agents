@@ -1,9 +1,17 @@
 {
   "students": [
     {
-      "id": "matheus",
+      "id": "matheus_en",
       "name": "Matheus",
-      "languages": ["en", "it"],
+      "languages": ["en"],
+      "notify": {
+        "discord": true
+      }
+    },
+    {
+      "id": "matheus_it",
+      "name": "Matheus",
+      "languages": ["it"],
       "notify": {
         "discord": true
       }

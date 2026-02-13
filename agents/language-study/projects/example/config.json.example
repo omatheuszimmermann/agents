@@ -1,13 +1,30 @@
 {
-  "student_id": "matheus",
-  "language": "en",
-  "topic": "general",
-  "cooldown_days": 30,
-  "schedule_override": {
-    "monday": "article",
-    "tuesday": "video",
-    "wednesday": "exercises",
-    "thursday": "grammar",
-    "friday": "article_with_video"
-  }
+  "students": [
+    {
+      "student_id": "matheus_en",
+      "language": "en",
+      "topic": "general",
+      "cooldown_days": 30,
+      "schedule_override": {
+        "monday": "article",
+        "tuesday": "video",
+        "wednesday": "exercises",
+        "thursday": "grammar",
+        "friday": "article_with_video"
+      }
+    },
+    {
+      "student_id": "matheus_it",
+      "language": "it",
+      "topic": "general",
+      "cooldown_days": 30,
+      "schedule_override": {
+        "monday": "video",
+        "tuesday": "article",
+        "wednesday": "exercises",
+        "thursday": "grammar",
+        "friday": "article_with_video"
+      }
+    }
+  ]
 }

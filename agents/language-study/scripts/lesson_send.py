@@ -169,14 +169,25 @@ def send_discord(message: str) -> None:
         return
 
 
+def resolve_student_configs(config: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if isinstance(config.get("students"), list):
+        return [c for c in config["students"] if isinstance(c, dict)]
+    return [config]
+
+
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: lesson_send.py <project> [--lesson-type <type>] [--parent-task-id <notion_page_id>]", file=sys.stderr)
+        print("Usage: lesson_send.py <project> [--student-id <id>] [--lesson-type <type>] [--parent-task-id <notion_page_id>]", file=sys.stderr)
         sys.exit(1)
 
     project = sys.argv[1]
     lesson_override = ""
     parent_task_id = ""
+    student_filter = ""
+    if "--student-id" in sys.argv:
+        idx = sys.argv.index("--student-id")
+        if idx + 1 < len(sys.argv):
+            student_filter = sys.argv[idx + 1]
     if "--lesson-type" in sys.argv:
         idx = sys.argv.index("--lesson-type")
         if idx + 1 < len(sys.argv):
@@ -202,51 +213,8 @@ def main() -> None:
     schedule = read_json(SCHEDULE_FILE, {"week": {}})
     config = read_json(config_path, {})
 
-    student_id = config.get("student_id", "")
-    if not student_id:
-        raise RuntimeError("config.json missing student_id")
-
-    student = get_student(profiles, student_id)
-    language = config.get("language") or (student.get("languages") or [""])[0]
-    topic = config.get("topic", "")
-    cooldown_days = int(config.get("cooldown_days", 30))
-    schedule_override = config.get("schedule_override") or {}
-    if schedule_override:
-        merged_week = dict(schedule.get("week", {}))
-        merged_week.update(schedule_override)
-        schedule = {"week": merged_week}
-
-    lesson_type = select_lesson_type(schedule, lesson_override)
-
     library = read_json(CONTENT_LIBRARY, {"items": []})
     items = library.get("items", []) if isinstance(library, dict) else []
-
-    selected_item = None
-    if lesson_type in ("article", "video", "article_with_video"):
-        selected_item = pick_content(items, language, lesson_type, topic, student_id, cooldown_days)
-        if not selected_item:
-            msg = f"[language-study] No content available for {language}/{lesson_type}."
-            send_discord(msg)
-            print("NOTION_RESULT: no_content")
-            return
-        selected_item["status"] = "used"
-        used_by = selected_item.get("used_by") or {}
-        if not isinstance(used_by, dict):
-            used_by = {}
-        used_by[student_id] = now_iso()
-        selected_item["used_by"] = used_by
-        write_json(CONTENT_LIBRARY, library)
-
-    llm = load_llm_from_env(prefix="LLM")
-    prompt = build_prompt(lesson_type, language, selected_item)
-    lesson_text = llm.chat(
-        messages=[
-            {"role": "system", "content": "Return only the lesson text."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=float(os.getenv("LLM_TEMPERATURE", "0.4")),
-        max_tokens=int(os.getenv("LLM_MAX_TOKENS", "700")),
-    )
 
     api_key = os.getenv("NOTION_API_KEY", "").strip()
     language_db_id = os.getenv("NOTION_DB_LANGUAGE_ID", "").strip()
@@ -254,41 +222,94 @@ def main() -> None:
         raise RuntimeError("Missing Notion config: NOTION_API_KEY / NOTION_DB_LANGUAGE_ID")
 
     notion = NotionClient(api_key=api_key, database_id=language_db_id)
-    title = f"{datetime.date.today().isoformat()} - {student.get('name','Student')} - {lesson_type}"
-    props: Dict[str, Any] = {
-        "Title": {"title": [{"text": {"content": title}}]},
-        "Status": {"status": {"name": "pending"}},
-        "Student": {"select": {"name": student.get("name", "")}},
-        "Language": {"select": {"name": language}},
-        "Lesson Type": {"select": {"name": lesson_type}},
-        "Received At": {"date": {"start": now_iso()}},
-    }
-    if topic:
-        props["Topic"] = {"select": {"name": topic}}
-    if selected_item:
-        if selected_item.get("url"):
-            props["Source URL"] = {"url": selected_item.get("url")}
-        if selected_item.get("summary"):
-            props["Content"] = {"rich_text": [{"text": {"content": selected_item.get("summary")[:2000]}}]}
-    if parent_task_id:
-        props["Parent Task"] = {"relation": [{"id": parent_task_id}]}
+    llm = load_llm_from_env(prefix="LLM")
+    student_configs = resolve_student_configs(config)
+    if student_filter:
+        student_configs = [c for c in student_configs if c.get("student_id") == student_filter]
+    if not student_configs:
+        raise RuntimeError("config.json missing student configs")
 
-    page = notion.create_page(properties=props)
-    page_id = page.get("id", "")
-    page_url = page.get("url", "")
+    created = 0
+    for student_cfg in student_configs:
+        student_id = student_cfg.get("student_id", "")
+        if not student_id:
+            continue
 
-    if lesson_text:
-        chunks = [lesson_text[i:i+1800] for i in range(0, len(lesson_text), 1800)]
-        notion.append_paragraphs(page_id, chunks)
+        student = get_student(profiles, student_id)
+        language = student_cfg.get("language") or (student.get("languages") or [""])[0]
+        topic = student_cfg.get("topic", "")
+        cooldown_days = int(student_cfg.get("cooldown_days", 30))
+        schedule_override = student_cfg.get("schedule_override") or {}
+        local_schedule = schedule
+        if schedule_override:
+            merged_week = dict(schedule.get("week", {}))
+            merged_week.update(schedule_override)
+            local_schedule = {"week": merged_week}
 
-    notify = student.get("notify", {}).get("discord", False)
-    if notify:
-        msg = f"[language-study] Lesson ready: {title}"
-        if page_url:
-            msg = f"{msg}\n{page_url}"
-        send_discord(msg)
+        lesson_type = select_lesson_type(local_schedule, lesson_override)
 
-    print(f"NOTION_RESULT: lesson_created {title}")
+        selected_item = None
+        if lesson_type in ("article", "video", "article_with_video"):
+            selected_item = pick_content(items, language, lesson_type, topic, student_id, cooldown_days)
+            if not selected_item:
+                msg = f"[language-study] No content available for {language}/{lesson_type}."
+                send_discord(msg)
+                continue
+            selected_item["status"] = "used"
+            used_by = selected_item.get("used_by") or {}
+            if not isinstance(used_by, dict):
+                used_by = {}
+            used_by[student_id] = now_iso()
+            selected_item["used_by"] = used_by
+            write_json(CONTENT_LIBRARY, library)
+
+        prompt = build_prompt(lesson_type, language, selected_item)
+        lesson_text = llm.chat(
+            messages=[
+                {"role": "system", "content": "Return only the lesson text."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=float(os.getenv("LLM_TEMPERATURE", "0.4")),
+            max_tokens=int(os.getenv("LLM_MAX_TOKENS", "700")),
+        )
+
+        title = f"{datetime.date.today().isoformat()} - {student.get('name','Student')} - {lesson_type}"
+        props: Dict[str, Any] = {
+            "Title": {"title": [{"text": {"content": title}}]},
+            "Status": {"status": {"name": "pending"}},
+            "Student": {"select": {"name": student.get("name", "")}},
+            "Language": {"select": {"name": language}},
+            "Lesson Type": {"select": {"name": lesson_type}},
+            "Received At": {"date": {"start": now_iso()}},
+        }
+        if topic:
+            props["Topic"] = {"select": {"name": topic}}
+        if selected_item:
+            if selected_item.get("url"):
+                props["Source URL"] = {"url": selected_item.get("url")}
+            if selected_item.get("summary"):
+                props["Content"] = {"rich_text": [{"text": {"content": selected_item.get("summary")[:2000]}}]}
+        if parent_task_id:
+            props["Parent Task"] = {"relation": [{"id": parent_task_id}]}
+
+        page = notion.create_page(properties=props)
+        page_id = page.get("id", "")
+        page_url = page.get("url", "")
+
+        if lesson_text:
+            chunks = [lesson_text[i:i+1800] for i in range(0, len(lesson_text), 1800)]
+            notion.append_paragraphs(page_id, chunks)
+
+        notify = student.get("notify", {}).get("discord", False)
+        if notify:
+            msg = f"[language-study] Lesson ready: {title}"
+            if page_url:
+                msg = f"{msg}\n{page_url}"
+            send_discord(msg)
+
+        created += 1
+
+    print(f"NOTION_RESULT: lesson_created count={created}")
 
 
 if __name__ == "__main__":

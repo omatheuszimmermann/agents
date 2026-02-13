@@ -53,6 +53,9 @@ function iconForTaskType(taskType) {
     email_check: "📧",
     email_tasks_create: "🧾",
     posts_create: "📝",
+    content_refresh: "📚",
+    lesson_send: "🎓",
+    lesson_correct: "✅",
   };
   return map[taskType] || "⚙️";
 }
@@ -146,7 +149,7 @@ client.on("messageCreate", async (msg) => {
     const parts = text.split(/\s+/).filter(Boolean);
 
     const help =
-      "Comandos válidos: `posts create <project>` | `email last <project>` | `help commands` | `help projects`";
+      "Comandos válidos: `posts create <project>` | `email last <project>` | `languages refresh` | `languages send <student_id> [lesson_type|random]` | `help commands` | `help projects`";
 
     if (parts.length === 0) {
       await msg.reply(`❌ Comando incompleto. ${help}`);
@@ -170,10 +173,11 @@ client.on("messageCreate", async (msg) => {
       return;
     }
 
-    const allowedDomains = new Set(["posts", "email"]);
+    const allowedDomains = new Set(["posts", "email", "languages"]);
     const allowedActions = {
       posts: new Set(["create"]),
       email: new Set(["last"]),
+      languages: new Set(["refresh", "send"]),
     };
 
     if (!allowedDomains.has(domain)) {
@@ -186,16 +190,18 @@ client.on("messageCreate", async (msg) => {
       return;
     }
 
-    if (!project) {
+    if (domain !== "languages" && !project) {
       await msg.reply(`❌ Falta o projeto. ${help}`);
       return;
     }
 
-    if (!projectExists(domain, project)) {
-      const errorMsg = `❌ Projeto inexistente para ${domain}: \`${project}\`. Verifique a pasta do projeto.`;
-      await msg.reply(errorMsg);
-      await sendErrorToDiscord(`[bot] Invalid project: domain=${domain} project=${project}`);
-      return;
+    if (domain !== "languages") {
+      if (!projectExists(domain, project)) {
+        const errorMsg = `❌ Projeto inexistente para ${domain}: \`${project}\`. Verifique a pasta do projeto.`;
+        await msg.reply(errorMsg);
+        await sendErrorToDiscord(`[bot] Invalid project: domain=${domain} project=${project}`);
+        return;
+      }
     }
 
     const notionToken = process.env.NOTION_API_KEY;
@@ -208,6 +214,7 @@ client.on("messageCreate", async (msg) => {
     const typeMap = {
       posts: { create: "posts_create" },
       email: { last: "email_check" },
+      languages: { refresh: "content_refresh", send: "lesson_send" },
     };
     const taskType = typeMap?.[domain]?.[action];
     if (!taskType) {
@@ -215,7 +222,26 @@ client.on("messageCreate", async (msg) => {
       return;
     }
 
-    const name = `${domain} ${action} ${project}`;
+    let notionProject = project;
+    let payloadText = "";
+    if (domain === "languages") {
+      notionProject = "languages";
+      if (action === "send") {
+        const studentId = (parts[2] || "").toLowerCase();
+        const lessonType = (parts[3] || "").toLowerCase();
+        if (!studentId) {
+          await msg.reply(`❌ Falta o student_id. ${help}`);
+          return;
+        }
+        if (lessonType && lessonType !== "random") {
+          payloadText = JSON.stringify({ student_id: studentId, lesson_type: lessonType });
+        } else {
+          payloadText = JSON.stringify({ student_id: studentId });
+        }
+      }
+    }
+
+    const name = `${domain} ${action} ${notionProject}`;
     const icon = iconForTaskType(taskType);
 
     const payload = {
@@ -225,10 +251,13 @@ client.on("messageCreate", async (msg) => {
         Name: { title: [{ text: { content: name } }] },
         Status: { select: { name: "queued" } },
         Type: { select: { name: taskType } },
-        Project: { select: { name: project } },
+        Project: { select: { name: notionProject } },
         RequestedBy: { select: { name: "discord" } },
       },
     };
+    if (payloadText) {
+      payload.properties.Payload = { rich_text: [{ text: { content: payloadText } }] };
+    }
 
     try {
       const res = await fetch("https://api.notion.com/v1/pages", {

@@ -178,13 +178,26 @@ def task_to_command(task_type: str, project: str, payload: str, page_id: str) ->
             "agents/content-library/scripts/refresh_library.py",
         ]
     if task_type == "lesson_send":
-        return [
+        cmd = [
             "python3",
             "agents/language-study/scripts/lesson_send.py",
             project,
-            "--parent-task-id",
-            page_id,
         ]
+        if payload:
+            try:
+                data = json.loads(payload)
+                if isinstance(data, dict):
+                    student_id = str(data.get("student_id", "")).strip()
+                    lesson_type = str(data.get("lesson_type", "")).strip()
+                    if student_id:
+                        cmd.extend(["--student-id", student_id])
+                    if lesson_type:
+                        cmd.extend(["--lesson-type", lesson_type])
+            except Exception:
+                pass
+        if page_id:
+            cmd.extend(["--parent-task-id", page_id])
+        return cmd
     if task_type == "lesson_correct":
         return [
             "python3",
