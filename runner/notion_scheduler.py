@@ -127,6 +127,18 @@ def should_create_task(notion, task_type: str, project: str, window: Tuple[str, 
         ]
     }
     results = notion.query_database(filter_obj=filt, limit=1)
+    if results:
+        page = results[0]
+        page_id = page.get("id", "")
+        name_prop = page.get("properties", {}).get("Name", {})
+        name_text = ""
+        if isinstance(name_prop.get("title"), list):
+            name_text = "".join(t.get("plain_text", "") for t in name_prop.get("title"))
+        log(
+            "Skip detail: found existing task "
+            f"type={task_type} project={project} page_id={page_id} name={name_text!r} "
+            f"window={start}..{end}"
+        )
     return len(results) == 0
 
 
@@ -148,6 +160,7 @@ def main() -> None:
     load_env_file(os.path.join(REPO_ROOT, "integrations", "discord", ".env"))
     notion = load_notion_from_env(prefix="NOTION")
     schedule_path = os.getenv("NOTION_SCHEDULE_FILE", os.path.join(REPO_ROOT, "runner", "notion_schedule.json"))
+    log(f"Scheduler using schedule: {schedule_path}")
     rules = load_schedule(schedule_path)
 
     created = 0
