@@ -1,0 +1,11 @@
+{
+  "week": {
+    "monday": "article",
+    "tuesday": "video",
+    "wednesday": "exercises",
+    "thursday": "grammar",
+    "friday": "article_with_video",
+    "saturday": "exercises",
+    "sunday": "review"
+  }
+}

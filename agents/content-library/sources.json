@@ -1,0 +1,113 @@
+{
+  "rules": {
+    "min_items": 8,
+    "max_age_days": 45,
+    "max_items_per_source": 50
+  },
+  "sources": [
+    {
+      "id": "bbc-world",
+      "name": "BBC News World",
+      "language": "en",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://feeds.bbci.co.uk/news/world/rss.xml"
+    },
+    {
+      "id": "bbc-technology",
+      "name": "BBC News Technology",
+      "language": "en",
+      "topic": "technology",
+      "type": "article",
+      "feed_url": "https://feeds.bbci.co.uk/news/technology/rss.xml"
+    },
+    {
+      "id": "techcrunch",
+      "name": "TechCrunch",
+      "language": "en",
+      "topic": "technology",
+      "type": "article",
+      "feed_url": "https://techcrunch.com/feed/"
+    },
+    {
+      "id": "easy-english-youtube",
+      "name": "Easy English (YouTube)",
+      "language": "en",
+      "topic": "education",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCg3A1noIcy8t5KJ4Xw5K0Pg"
+    },
+    {
+      "id": "ansa-italia",
+      "name": "ANSA Italia",
+      "language": "it",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://www.ansa.it/sito/ansait_rss.xml"
+    },
+    {
+      "id": "rai-news",
+      "name": "Rai News",
+      "language": "it",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://www.rainews.it/rss/homepage.xml"
+    },
+    {
+      "id": "il-post",
+      "name": "Il Post",
+      "language": "it",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://www.ilpost.it/feed/"
+    },
+    {
+      "id": "wired-italia",
+      "name": "Wired Italia",
+      "language": "it",
+      "topic": "technology",
+      "type": "article",
+      "feed_url": "https://www.wired.it/feed/rss"
+    },
+    {
+      "id": "ansa-tecnologia",
+      "name": "ANSA Tecnologia",
+      "language": "it",
+      "topic": "technology",
+      "type": "article",
+      "feed_url": "https://www.ansa.it/sito/notizie/tecnologia/tecnologia_rss.xml"
+    },
+    {
+      "id": "agenda-digitale",
+      "name": "Agenda Digitale",
+      "language": "it",
+      "topic": "technology",
+      "type": "article",
+      "feed_url": "https://www.agendadigitale.eu/feed/"
+    },
+    {
+      "id": "ansa-salute",
+      "name": "ANSA Salute",
+      "language": "it",
+      "topic": "health",
+      "type": "article",
+      "feed_url": "https://www.ansa.it/canale_saluteebenessere/notizie/rss.xml"
+    },
+    {
+      "id": "quotidiano-sanitario",
+      "name": "Quotidiano Sanità",
+      "language": "it",
+      "topic": "health",
+      "type": "article",
+      "feed_url": "https://www.quotidianosanita.it/rss.xml"
+    },
+    {
+      "id": "nurse24",
+      "name": "Nurse24",
+      "language": "it",
+      "topic": "health",
+      "type": "article",
+      "feed_url": "https://www.nurse24.it/feed/"
+    }
+  ]
+}

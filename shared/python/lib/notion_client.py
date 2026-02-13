@@ -131,6 +131,9 @@ def icon_for_task_type(task_type: str) -> str:
         "email_check": "📧",
         "email_tasks_create": "🧾",
         "posts_create": "📝",
+        "content_refresh": "📚",
+        "lesson_send": "🎓",
+        "lesson_correct": "✅",
     }
     return mapping.get(task_type, "⚙️")
 

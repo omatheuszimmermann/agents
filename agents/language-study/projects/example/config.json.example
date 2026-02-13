@@ -1,0 +1,12 @@
+{
+  "student_id": "matheus",
+  "language": "en",
+  "topic": "general",
+  "schedule_override": {
+    "monday": "article",
+    "tuesday": "video",
+    "wednesday": "exercises",
+    "thursday": "grammar",
+    "friday": "article_with_video"
+  }
+}

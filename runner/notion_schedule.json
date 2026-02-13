@@ -5,6 +5,14 @@
       "frequency": "daily"
     },
     {
+      "type": "content_refresh",
+      "frequency": "daily"
+    },
+    {
+      "type": "lesson_send",
+      "frequency": "daily"
+    },
+    {
       "type": "posts_create",
       "frequency": "twice_per_week"
     }

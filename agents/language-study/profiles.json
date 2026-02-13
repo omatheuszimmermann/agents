@@ -1,0 +1,12 @@
+{
+  "students": [
+    {
+      "id": "matheus",
+      "name": "Matheus",
+      "languages": ["en", "it"],
+      "notify": {
+        "discord": true
+      }
+    }
+  ]
+}

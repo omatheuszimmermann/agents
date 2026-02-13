@@ -172,6 +172,25 @@ def task_to_command(task_type: str, project: str, payload: str, page_id: str) ->
         if page_id:
             cmd.extend(["--parent-task-id", page_id])
         return cmd
+    if task_type == "content_refresh":
+        return [
+            "python3",
+            "agents/content-library/scripts/refresh_library.py",
+        ]
+    if task_type == "lesson_send":
+        return [
+            "python3",
+            "agents/language-study/scripts/lesson_send.py",
+            project,
+            "--parent-task-id",
+            page_id,
+        ]
+    if task_type == "lesson_correct":
+        return [
+            "python3",
+            "agents/language-study/scripts/lesson_correct.py",
+            project,
+        ]
     raise RuntimeError(f"Unknown task type: {task_type}")
 
 
