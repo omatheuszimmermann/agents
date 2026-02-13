@@ -19,6 +19,7 @@ AGENT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 PROJECTS_DIR = os.path.join(AGENT_DIR, "projects")
 OUTPUTS_DIR = os.path.join(AGENT_DIR, "outputs")
 TMP_DIR = os.path.join(AGENT_DIR, "tmp")
+OUTPUT_RETENTION_DAYS = int(os.getenv("EMAIL_OUTPUT_RETENTION_DAYS", "30"))
 
 
 def load_env_file(path: str) -> None:
@@ -139,6 +140,24 @@ def send_error_to_discord(message: str) -> None:
     env["MSG_ARG"] = message
     subprocess.run([notify_script, channel_id, message], check=False, env=env)
 
+def cleanup_outputs(retention_days: int) -> None:
+    if retention_days <= 0:
+        return
+    if not os.path.isdir(OUTPUTS_DIR):
+        return
+    cutoff = datetime.datetime.now().timestamp() - (retention_days * 86400)
+    for name in os.listdir(OUTPUTS_DIR):
+        if not name.endswith(".json"):
+            continue
+        if "_classified_" not in name:
+            continue
+        path = os.path.join(OUTPUTS_DIR, name)
+        try:
+            if os.path.getmtime(path) < cutoff:
+                os.remove(path)
+        except Exception:
+            continue
+
 def maybe_enqueue_task_creation(project: str, output_file: str, count: int, parent_task_id: str) -> None:
     if count <= 0:
         return
@@ -186,8 +205,9 @@ def main() -> None:
     os.makedirs(TMP_DIR, exist_ok=True)
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    date_key = datetime.datetime.now().strftime("%Y-%m-%d")
     tmp_file = os.path.join(TMP_DIR, f"{args.project}_pending_{timestamp}.txt")
-    output_file = os.path.join(OUTPUTS_DIR, f"{args.project}_classified_{timestamp}.json")
+    output_file = os.path.join(OUTPUTS_DIR, f"{args.project}_classified_{date_key}.json")
     seen_file = os.path.join(OUTPUTS_DIR, f"{args.project}_seen_ids.json")
 
     lines = run_email_fetch(args.project, args.limit, args.status, args.since, args.before)
@@ -207,6 +227,21 @@ def main() -> None:
                 seen_ids = set()
 
         results = []
+        existing_results = []
+        if os.path.exists(output_file):
+            try:
+                with open(output_file, "r", encoding="utf-8") as f:
+                    existing = json.load(f)
+                    if isinstance(existing, dict) and isinstance(existing.get("results"), list):
+                        existing_results = existing.get("results", [])
+            except Exception:
+                existing_results = []
+        existing_ids = set()
+        for item in existing_results:
+            mid = str(item.get("message_id", "")).strip()
+            if mid:
+                existing_ids.add(mid)
+
         for item in emails:
             message_id = item.get("message_id", "")
             if message_id and message_id in seen_ids:
@@ -226,14 +261,24 @@ def main() -> None:
             if message_id:
                 seen_ids.add(message_id)
 
+        merged_results = list(existing_results)
+        for item in results:
+            mid = str(item.get("message_id", "")).strip()
+            if mid and mid in existing_ids:
+                continue
+            merged_results.append(item)
+            if mid:
+                existing_ids.add(mid)
+
         with open(output_file, "w", encoding="utf-8") as f:
-            json.dump({"project": args.project, "results": results}, f, indent=2, ensure_ascii=False)
+            json.dump({"project": args.project, "results": merged_results}, f, indent=2, ensure_ascii=False)
 
         with open(seen_file, "w", encoding="utf-8") as f:
             json.dump(sorted(seen_ids), f, indent=2, ensure_ascii=False)
 
         print(output_file)
         maybe_enqueue_task_creation(args.project, output_file, len(results), args.parent_task_id)
+        cleanup_outputs(OUTPUT_RETENTION_DAYS)
     finally:
         if os.path.exists(tmp_file):
             os.remove(tmp_file)
