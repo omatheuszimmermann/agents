@@ -11,6 +11,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
 from llm_client import load_llm_from_env  # noqa: E402
+from notion_client import NotionClient  # noqa: E402
 
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -130,6 +131,45 @@ def render_output_markdown(post_number: int, sections: dict) -> str:
         blocks.extend(["Image Prompt", image_prompt])
     return "\n\n".join(blocks).strip() + "\n"
 
+def build_task_body_text(sections: dict) -> str:
+    title = sections.get("title", "").strip()
+    description = sections.get("description", "").strip()
+    cta = sections.get("cta", "").strip()
+    hashtags = sections.get("hashtags", "").strip()
+    parts = []
+    if title:
+        parts.append(f"Title: {title}")
+    if description:
+        parts.append(f"Description: {description}")
+    if cta:
+        parts.append(f"CTA: {cta}")
+    if hashtags:
+        parts.append(f"Hashtags: {hashtags}")
+    return "\n\n".join(parts).strip()
+
+def chunk_text(text: str, max_len: int = 1800) -> list[str]:
+    if not text:
+        return []
+    chunks = []
+    current = []
+    size = 0
+    for line in text.splitlines():
+        line = line.rstrip()
+        add_len = len(line) + (1 if current else 0)
+        if size + add_len > max_len and current:
+            chunks.append("\n".join(current))
+            current = [line]
+            size = len(line)
+        else:
+            if current:
+                current.append(line)
+                size += add_len
+            else:
+                current = [line]
+                size = len(line)
+    if current:
+        chunks.append("\n".join(current))
+    return chunks
 def build_discord_messages(markdown: str, post_number: int) -> tuple[str, str]:
     sections = extract_sections(markdown)
     description = sections.get("description", "").strip()
@@ -208,11 +248,19 @@ def update_history(history_file: str, description: str) -> int:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: generate_post.py <project> [topic]", file=sys.stderr)
+        print("Usage: generate_post.py <project> [topic] [--parent-task-id <notion_page_id>]", file=sys.stderr)
         sys.exit(1)
 
     project = sys.argv[1]
-    topic = sys.argv[2] if len(sys.argv) >= 3 else ""
+    topic = ""
+    parent_task_id = ""
+    if len(sys.argv) >= 3:
+        if sys.argv[2] == "--parent-task-id":
+            parent_task_id = sys.argv[3] if len(sys.argv) >= 4 else ""
+        else:
+            topic = sys.argv[2]
+            if len(sys.argv) >= 5 and sys.argv[3] == "--parent-task-id":
+                parent_task_id = sys.argv[4]
 
     project_file = os.path.join(PROJECTS_DIR, project, "project.md")
     if not os.path.exists(project_file):
@@ -222,6 +270,7 @@ def main():
     # Load .env from social-posts root
     env_file = os.path.join(BASE_DIR, ".env")
     load_env_file(env_file)
+    load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
 
     llm = load_llm_from_env(prefix="LLM")
 
@@ -293,6 +342,31 @@ def main():
     with open(out_file, "w", encoding="utf-8") as f:
         f.write(render_output_markdown(post_number, sections))
 
+    notion_page_url = ""
+    try:
+        api_key = os.getenv("NOTION_API_KEY", "").strip()
+        posts_db_id = os.getenv("NOTION_DB_POSTS_ID", "").strip()
+        if api_key and posts_db_id:
+            notion = NotionClient(api_key=api_key, database_id=posts_db_id)
+            title = sections.get("title", "").strip() or description or f"Post #{post_number}"
+            body_text = build_task_body_text(sections)
+            props = {
+                "Title": {"title": [{"text": {"content": title}}]},
+                "Project": {"select": {"name": project}},
+                "Status": {"status": {"name": "pending"}},
+                "Received At": {"date": {"start": datetime.datetime.now().isoformat()}},
+                "Prompt": {"rich_text": [{"text": {"content": sections.get("image_prompt", "").strip()}}]},
+            }
+            if parent_task_id:
+                props["Parent Task"] = {"relation": [{"id": parent_task_id}]}
+            page = notion.create_page(properties=props)
+            chunks = chunk_text(body_text, max_len=1800)
+            if chunks:
+                notion.append_paragraphs(page.get("id"), chunks)
+            notion_page_url = page.get("url", "")
+    except Exception as exc:
+        send_error_to_discord(f"[social-posts] Notion create failed: {exc}")
+
     # Notify Discord (best-effort)
     notify_script = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
     if os.path.exists(notify_script):
@@ -302,6 +376,8 @@ def main():
             first_message, prompt_message = build_discord_messages(normalized_content, post_number)
             env = os.environ.copy()
             try:
+                if notion_page_url:
+                    first_message = f"{first_message}\n{notion_page_url}"
                 env["MSG_ARG"] = first_message
                 subprocess.run([notify_script, channel_id, first_message], check=False, env=env)
                 if prompt_message:
