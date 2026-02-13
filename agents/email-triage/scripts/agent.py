@@ -106,10 +106,19 @@ def classify_email(llm, email_item: Dict[str, str]) -> str:
         "lead, support, billing, cancellation, features, spam, others."
     )
     user_prompt = (
-        "Classify this email by type.\n"
+        "Classify this email by type using these definitions:\n"
+        "- lead: anything related to the possibility of a new customer.\n"
+        "- support: questions (that don't fit other labels) and technical support.\n"
+        "- billing: anything related to finance (payments, invoices, pricing, billing questions).\n"
+        "- cancellation: any email related to cancellation (requests or questions).\n"
+        "- features: requests for a new feature or functionality.\n"
+        "- spam: spam emails.\n"
+        "- others: when none of the above applies.\n"
+        "\n"
         f"Date: {email_item.get('date', '')}\n"
         f"From: {email_item.get('sender', '')}\n"
         f"Subject: {email_item.get('subject', '')}\n"
+        f"Body: {email_item.get('body', '')}\n"
         "Return only the label. If unsure, use 'others'."
     )
 
