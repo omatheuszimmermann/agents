@@ -44,6 +44,15 @@ function logError(...args) {
   console.error(`[${ts()}]`, ...args);
 }
 
+function iconForTaskType(taskType) {
+  const map = {
+    email_check: "📧",
+    email_tasks_create: "🧾",
+    posts_create: "📝",
+  };
+  return map[taskType] || "⚙️";
+}
+
 async function sendErrorToDiscord(message) {
   const channelId = process.env.DISCORD_LOG_CHANNEL_ID;
   if (!channelId) return;
@@ -134,9 +143,11 @@ client.on("messageCreate", async (msg) => {
     }
 
     const name = `${domain} ${action} ${project}`;
+    const icon = iconForTaskType(taskType);
 
     const payload = {
       parent: { database_id: notionDbId },
+      icon: { emoji: icon },
       properties: {
         Name: { title: [{ text: { content: name } }] },
         Status: { select: { name: "queued" } },
@@ -164,6 +175,7 @@ client.on("messageCreate", async (msg) => {
         return;
       }
 
+      const page = await res.json();
       await msg.reply(`✅ Task criada no Notion: \`${taskType}\` (${project})`);
     } catch (err) {
       await msg.reply("❌ Erro ao criar task no Notion.");

@@ -68,7 +68,10 @@ class NotionClient:
         _request(self.api_key, "PATCH", url, payload)
 
     def create_task(self, name: str, task_type: str, project: str, status: str,
-                    requested_by: str, payload_text: str = "") -> Dict[str, Any]:
+                    requested_by: str, payload_text: str = "",
+                    parent_task_id: Optional[str] = None,
+                    title_event: Optional[str] = None,
+                    icon_emoji: Optional[str] = None) -> Dict[str, Any]:
         url = f"{self.base_url}/pages"
         payload = {
             "parent": {"database_id": self.database_id},
@@ -80,8 +83,23 @@ class NotionClient:
                 "RequestedBy": {"select": {"name": requested_by}},
             },
         }
+        if icon_emoji:
+            payload["icon"] = {"emoji": icon_emoji}
         if payload_text:
             payload["properties"]["Payload"] = {"rich_text": [{"text": {"content": payload_text}}]}
+        if parent_task_id:
+            payload["properties"]["Parent Task"] = {"relation": [{"id": parent_task_id}]}
+        page = _request(self.api_key, "POST", url, payload)
+        return page
+
+    def create_page(self, properties: Dict[str, Any], children: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        url = f"{self.base_url}/pages"
+        payload: Dict[str, Any] = {
+            "parent": {"database_id": self.database_id},
+            "properties": properties,
+        }
+        if children:
+            payload["children"] = children
         return _request(self.api_key, "POST", url, payload)
 
     def append_paragraphs(self, block_id: str, texts: List[str]) -> None:
@@ -106,3 +124,24 @@ def load_notion_from_env(prefix: str = "NOTION") -> NotionClient:
     if not api_key or not db_id:
         raise RuntimeError("Missing Notion config: NOTION_API_KEY / NOTION_DB_ID")
     return NotionClient(api_key=api_key, database_id=db_id)
+
+
+def icon_for_task_type(task_type: str) -> str:
+    mapping = {
+        "email_check": "📧",
+        "email_tasks_create": "🧾",
+        "posts_create": "📝",
+    }
+    return mapping.get(task_type, "⚙️")
+
+
+def _get_unique_id_text(page: Dict[str, Any], prop_name: str) -> str:
+    prop = page.get("properties", {}).get(prop_name, {})
+    unique_id = prop.get("unique_id") or {}
+    number = unique_id.get("number")
+    if number is None:
+        return ""
+    prefix = unique_id.get("prefix") or ""
+    if prefix:
+        return f"{prefix}-{number}"
+    return str(number)

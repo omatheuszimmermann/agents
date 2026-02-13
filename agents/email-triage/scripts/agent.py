@@ -12,12 +12,14 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
 from llm_client import load_llm_from_env  # noqa: E402
+from notion_client import load_notion_from_env, icon_for_task_type  # noqa: E402
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 AGENT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 PROJECTS_DIR = os.path.join(AGENT_DIR, "projects")
 OUTPUTS_DIR = os.path.join(AGENT_DIR, "outputs")
 TMP_DIR = os.path.join(AGENT_DIR, "tmp")
+OUTPUT_RETENTION_DAYS = int(os.getenv("EMAIL_OUTPUT_RETENTION_DAYS", "30"))
 
 
 def load_env_file(path: str) -> None:
@@ -62,6 +64,20 @@ def run_email_fetch(project: str, limit: int, status: str, since: str, before: s
 def parse_email_lines(lines: List[str]) -> List[Dict[str, str]]:
     parsed = []
     for line in lines:
+        if line.startswith("{") and line.endswith("}"):
+            try:
+                obj = json.loads(line)
+                if isinstance(obj, dict):
+                    parsed.append({
+                        "date": str(obj.get("date", "")),
+                        "sender": str(obj.get("sender", "")),
+                        "subject": str(obj.get("subject", "")),
+                        "message_id": str(obj.get("message_id", "")),
+                        "body": str(obj.get("body", "")),
+                    })
+                    continue
+            except Exception:
+                pass
         # Expected: "1. date | sender | subject | message_id"
         if ". " in line:
             _, rest = line.split(". ", 1)
@@ -79,6 +95,7 @@ def parse_email_lines(lines: List[str]) -> List[Dict[str, str]]:
             "sender": sender,
             "subject": subject,
             "message_id": message_id,
+            "body": "",
         })
     return parsed
 
@@ -86,14 +103,23 @@ def parse_email_lines(lines: List[str]) -> List[Dict[str, str]]:
 def classify_email(llm, email_item: Dict[str, str]) -> str:
     system_prompt = (
         "You are an email classifier. Return ONLY one label from: "
-        "suporte, novo_cliente, duvida, spam, descartavel, outro."
+        "lead, support, billing, cancellation, features, spam, others."
     )
     user_prompt = (
-        "Classify this email by type.\n"
+        "Classify this email by type using these definitions:\n"
+        "- lead: anything related to the possibility of a new customer.\n"
+        "- support: questions (that don't fit other labels) and technical support.\n"
+        "- billing: anything related to finance (payments, invoices, pricing, billing questions).\n"
+        "- cancellation: any email related to cancellation (requests or questions).\n"
+        "- features: requests for a new feature or functionality.\n"
+        "- spam: spam emails.\n"
+        "- others: when none of the above applies.\n"
+        "\n"
         f"Date: {email_item.get('date', '')}\n"
         f"From: {email_item.get('sender', '')}\n"
         f"Subject: {email_item.get('subject', '')}\n"
-        "Return only the label. If unsure, use 'outro'."
+        f"Body: {email_item.get('body', '')}\n"
+        "Return only the label. If unsure, use 'others'."
     )
 
     raw = llm.chat(
@@ -106,22 +132,11 @@ def classify_email(llm, email_item: Dict[str, str]) -> str:
     )
 
     label = raw.strip().lower().replace(" ", "_")
-    allowed = {"suporte", "novo_cliente", "duvida", "spam", "descartavel", "outro"}
+    allowed = {"lead", "support", "billing", "cancellation", "features", "spam", "others"}
     if label not in allowed:
-        return "outro"
+        return "others"
     return label
 
-
-def send_discord_message(message: str) -> None:
-    notify_script = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
-    if not os.path.exists(notify_script):
-        raise RuntimeError(f"notify_discord.sh not found at {notify_script}")
-    channel_id = os.getenv("CHANNEL_ID", "").strip()
-    if not channel_id:
-        raise RuntimeError("CHANNEL_ID is not set in agents/email-triage/.env")
-    env = os.environ.copy()
-    env["MSG_ARG"] = message
-    subprocess.run([notify_script, channel_id, message], check=True, env=env)
 
 def send_error_to_discord(message: str) -> None:
     notify_script = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
@@ -134,6 +149,44 @@ def send_error_to_discord(message: str) -> None:
     env["MSG_ARG"] = message
     subprocess.run([notify_script, channel_id, message], check=False, env=env)
 
+def cleanup_outputs(retention_days: int) -> None:
+    if retention_days <= 0:
+        return
+    if not os.path.isdir(OUTPUTS_DIR):
+        return
+    cutoff = datetime.datetime.now().timestamp() - (retention_days * 86400)
+    for name in os.listdir(OUTPUTS_DIR):
+        if not name.endswith(".json"):
+            continue
+        if "_classified_" not in name:
+            continue
+        path = os.path.join(OUTPUTS_DIR, name)
+        try:
+            if os.path.getmtime(path) < cutoff:
+                os.remove(path)
+        except Exception:
+            continue
+
+def maybe_enqueue_task_creation(project: str, output_file: str, count: int, parent_task_id: str) -> None:
+    if count <= 0:
+        return
+    try:
+        notion = load_notion_from_env(prefix="NOTION")
+        name = f"email_tasks_create {project}"
+        notion.create_task(
+            name=name,
+            task_type="email_tasks_create",
+            project=project,
+            status="queued",
+            requested_by="system",
+            payload_text=output_file,
+            parent_task_id=parent_task_id or None,
+            title_event=f"email_tasks_create {project}",
+            icon_emoji=icon_for_task_type("email_tasks_create"),
+        )
+    except Exception as exc:
+        print(f"Failed to enqueue email_tasks_create: {exc}", file=sys.stderr)
+        send_error_to_discord(f"[email-triage] Failed to enqueue email_tasks_create: {exc}")
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Email agent: fetch and classify emails.")
@@ -142,6 +195,7 @@ def main() -> None:
     parser.add_argument("--status", choices=["all", "read", "unread"], default="all", help="Filter by status")
     parser.add_argument("--since", help="Filter emails since date (YYYY-MM-DD)")
     parser.add_argument("--before", help="Filter emails before date (YYYY-MM-DD)")
+    parser.add_argument("--parent-task-id", help="Notion page ID of the parent task", default="")
     args = parser.parse_args()
 
     env_file = os.path.join(PROJECTS_DIR, args.project, ".env")
@@ -152,6 +206,7 @@ def main() -> None:
     # Load project .env first, then base .env to fill missing values.
     load_env_file(env_file)
     load_env_file(os.path.join(AGENT_DIR, ".env"))
+    load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
 
     llm = load_llm_from_env(prefix="LLM")
 
@@ -159,8 +214,9 @@ def main() -> None:
     os.makedirs(TMP_DIR, exist_ok=True)
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    date_key = datetime.datetime.now().strftime("%Y-%m-%d")
     tmp_file = os.path.join(TMP_DIR, f"{args.project}_pending_{timestamp}.txt")
-    output_file = os.path.join(OUTPUTS_DIR, f"{args.project}_classified_{timestamp}.json")
+    output_file = os.path.join(OUTPUTS_DIR, f"{args.project}_classified_{date_key}.json")
     seen_file = os.path.join(OUTPUTS_DIR, f"{args.project}_seen_ids.json")
 
     lines = run_email_fetch(args.project, args.limit, args.status, args.since, args.before)
@@ -180,7 +236,21 @@ def main() -> None:
                 seen_ids = set()
 
         results = []
-        notion_messages = []
+        existing_results = []
+        if os.path.exists(output_file):
+            try:
+                with open(output_file, "r", encoding="utf-8") as f:
+                    existing = json.load(f)
+                    if isinstance(existing, dict) and isinstance(existing.get("results"), list):
+                        existing_results = existing.get("results", [])
+            except Exception:
+                existing_results = []
+        existing_ids = set()
+        for item in existing_results:
+            mid = str(item.get("message_id", "")).strip()
+            if mid:
+                existing_ids.add(mid)
+
         for item in emails:
             message_id = item.get("message_id", "")
             if message_id and message_id in seen_ids:
@@ -192,35 +262,32 @@ def main() -> None:
                 "sender": item.get("sender", ""),
                 "subject": item.get("subject", ""),
                 "message_id": message_id,
+                "body": item.get("body", ""),
                 "type": label,
             }
             results.append(result)
 
-            message = (
-                f"[{label}] {result['subject']}\n"
-                f"From: {result['sender']}\n"
-                f"Date: {result['date']}"
-            )
-            try:
-                send_discord_message(message)
-                notion_messages.append(message)
-            except Exception as exc:
-                print(f"Discord notify failed: {exc}", file=sys.stderr)
-                send_error_to_discord(f"[email-triage] Discord notify failed: {exc}")
-
             if message_id:
                 seen_ids.add(message_id)
 
+        merged_results = list(existing_results)
+        for item in results:
+            mid = str(item.get("message_id", "")).strip()
+            if mid and mid in existing_ids:
+                continue
+            merged_results.append(item)
+            if mid:
+                existing_ids.add(mid)
+
         with open(output_file, "w", encoding="utf-8") as f:
-            json.dump({"project": args.project, "results": results}, f, indent=2, ensure_ascii=False)
+            json.dump({"project": args.project, "results": merged_results}, f, indent=2, ensure_ascii=False)
 
         with open(seen_file, "w", encoding="utf-8") as f:
             json.dump(sorted(seen_ids), f, indent=2, ensure_ascii=False)
 
         print(output_file)
-        if notion_messages:
-            joined = "\n\n---\n\n".join(notion_messages)
-            print(f"NOTION_RESULT: {joined}")
+        maybe_enqueue_task_creation(args.project, output_file, len(results), args.parent_task_id)
+        cleanup_outputs(OUTPUT_RETENTION_DAYS)
     finally:
         if os.path.exists(tmp_file):
             os.remove(tmp_file)

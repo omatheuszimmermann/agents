@@ -13,7 +13,7 @@ STATE_DIR = os.path.join(REPO_ROOT, "runner", "state")
 STATE_FILE = os.path.join(STATE_DIR, "notion_scheduler.json")
 NOTIFY_SCRIPT = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
 
-from notion_client import load_notion_from_env  # noqa: E402
+from notion_client import load_notion_from_env, icon_for_task_type  # noqa: E402
 
 
 def load_env_file(path: str) -> None:
@@ -138,6 +138,8 @@ def create_task(notion, task_type: str, project: str) -> None:
         project=project,
         status="queued",
         requested_by="system",
+        title_event=f"{task_type} {project}",
+        icon_emoji=icon_for_task_type(task_type),
     )
 
 

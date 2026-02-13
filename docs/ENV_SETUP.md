@@ -24,6 +24,7 @@ Este repo usa arquivos `.env` por componente. Sempre crie o `.env` a partir do `
 - Variaveis:
   - `NOTION_API_KEY`
   - `NOTION_DB_ID`
+  - `NOTION_DB_EMAILS_ID`
   - `NOTION_MAX_TASKS` (opcional)
   - `NOTION_PROJECTS` (opcional)
   - `NOTION_SCHEDULE_FILE` (opcional)
@@ -34,6 +35,7 @@ Este repo usa arquivos `.env` por componente. Sempre crie o `.env` a partir do `
 - Exemplo: `agents/email-triage/.env.example`
 - Variaveis:
   - `CHANNEL_ID` (canal para notificacoes)
+  - `EMAIL_OUTPUT_RETENTION_DAYS` (opcional, default 30)
   - `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`
 
 5. Agente Email (nivel do projeto)
