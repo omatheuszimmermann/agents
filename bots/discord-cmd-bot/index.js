@@ -17,6 +17,10 @@ const ENV_PATH = path.join(__dirname, ".env");
 loadEnv(ENV_PATH);
 loadEnv(path.resolve(__dirname, "..", "..", "integrations", "notion", ".env"));
 
+const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const POSTS_PROJECTS_DIR = path.join(REPO_ROOT, "agents", "social-posts", "projects");
+const EMAIL_PROJECTS_DIR = path.join(REPO_ROOT, "agents", "email-triage", "projects");
+
 const TOKEN = process.env.DISCORD_TOKEN;
 
 if (!TOKEN) {
@@ -51,6 +55,54 @@ function iconForTaskType(taskType) {
     posts_create: "📝",
   };
   return map[taskType] || "⚙️";
+}
+
+function projectExists(domain, project) {
+  if (!project) return false;
+  if (domain === "posts") {
+    const projectFile = path.join(
+      POSTS_PROJECTS_DIR,
+      project,
+      "project.md"
+    );
+    return fs.existsSync(projectFile);
+  }
+  if (domain === "email") {
+    const envFile = path.join(
+      EMAIL_PROJECTS_DIR,
+      project,
+      ".env"
+    );
+    return fs.existsSync(envFile);
+  }
+  return false;
+}
+
+function listDirectories(baseDir) {
+  try {
+    return fs
+      .readdirSync(baseDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort((a, b) => a.localeCompare(b));
+  } catch (err) {
+    logError(`Failed to list directories in ${baseDir}:`, err);
+    return [];
+  }
+}
+
+function formatProjectsMessage() {
+  const postsProjects = listDirectories(POSTS_PROJECTS_DIR);
+  const emailProjects = listDirectories(EMAIL_PROJECTS_DIR);
+
+  const postsLine = postsProjects.length
+    ? postsProjects.map((p) => `\`${p}\``).join(", ")
+    : "(nenhum)";
+  const emailLine = emailProjects.length
+    ? emailProjects.map((p) => `\`${p}\``).join(", ")
+    : "(nenhum)";
+
+  return `Projetos disponíveis:\n- posts: ${postsLine}\n- email: ${emailLine}`;
 }
 
 async function sendErrorToDiscord(message) {
@@ -93,7 +145,8 @@ client.on("messageCreate", async (msg) => {
     const text = msg.content.replace(/<@!?\d+>/g, "").trim();
     const parts = text.split(/\s+/).filter(Boolean);
 
-    const help = "Comandos válidos: `posts create <project>` | `email last <project>`";
+    const help =
+      "Comandos válidos: `posts create <project>` | `email last <project>` | `help commands` | `help projects`";
 
     if (parts.length === 0) {
       await msg.reply(`❌ Comando incompleto. ${help}`);
@@ -103,6 +156,19 @@ client.on("messageCreate", async (msg) => {
     const domain = (parts[0] || "").toLowerCase();
     const action = (parts[1] || "").toLowerCase();
     const project = (parts[2] || "").toLowerCase();
+
+    if (domain === "help") {
+      if (action === "commands") {
+        await msg.reply(help);
+        return;
+      }
+      if (action === "projects") {
+        await msg.reply(formatProjectsMessage());
+        return;
+      }
+      await msg.reply(`❌ Ajuda inválida. ${help}`);
+      return;
+    }
 
     const allowedDomains = new Set(["posts", "email"]);
     const allowedActions = {
@@ -122,6 +188,13 @@ client.on("messageCreate", async (msg) => {
 
     if (!project) {
       await msg.reply(`❌ Falta o projeto. ${help}`);
+      return;
+    }
+
+    if (!projectExists(domain, project)) {
+      const errorMsg = `❌ Projeto inexistente para ${domain}: \`${project}\`. Verifique a pasta do projeto.`;
+      await msg.reply(errorMsg);
+      await sendErrorToDiscord(`[bot] Invalid project: domain=${domain} project=${project}`);
       return;
     }
 
