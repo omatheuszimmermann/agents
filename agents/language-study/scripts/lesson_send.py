@@ -68,7 +68,38 @@ def select_lesson_type(schedule: Dict[str, Any], override: Optional[str] = None)
     return schedule.get("week", {}).get(key, "exercises")
 
 
-def pick_content(items: List[Dict[str, Any]], language: str, lesson_type: str, topic: str) -> Optional[Dict[str, Any]]:
+def parse_iso(raw: str) -> Optional[datetime.datetime]:
+    if not raw:
+        return None
+    try:
+        return datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def is_within_days(dt: Optional[datetime.datetime], days: int) -> bool:
+    if not dt or days <= 0:
+        return False
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)
+    return dt >= cutoff
+
+
+def get_last_used_for_user(item: Dict[str, Any], student_id: str) -> Optional[datetime.datetime]:
+    used_by = item.get("used_by") or {}
+    if isinstance(used_by, dict):
+        raw = used_by.get(student_id, "")
+        return parse_iso(raw)
+    return None
+
+
+def pick_content(
+    items: List[Dict[str, Any]],
+    language: str,
+    lesson_type: str,
+    topic: str,
+    student_id: str,
+    cooldown_days: int,
+) -> Optional[Dict[str, Any]]:
     candidates = []
     for item in items:
         if item.get("status") != "available":
@@ -79,6 +110,9 @@ def pick_content(items: List[Dict[str, Any]], language: str, lesson_type: str, t
             continue
         if topic and item.get("topic") != topic:
             continue
+        last_used = get_last_used_for_user(item, student_id)
+        if is_within_days(last_used, cooldown_days):
+            continue
         candidates.append(item)
     if not candidates:
         # fallback: ignore topic
@@ -88,6 +122,9 @@ def pick_content(items: List[Dict[str, Any]], language: str, lesson_type: str, t
             if language and item.get("language") != language:
                 continue
             if lesson_type and item.get("type") != lesson_type:
+                continue
+            last_used = get_last_used_for_user(item, student_id)
+            if is_within_days(last_used, cooldown_days):
                 continue
             candidates.append(item)
     return candidates[0] if candidates else None
@@ -172,6 +209,7 @@ def main() -> None:
     student = get_student(profiles, student_id)
     language = config.get("language") or (student.get("languages") or [""])[0]
     topic = config.get("topic", "")
+    cooldown_days = int(config.get("cooldown_days", 30))
     schedule_override = config.get("schedule_override") or {}
     if schedule_override:
         merged_week = dict(schedule.get("week", {}))
@@ -185,14 +223,18 @@ def main() -> None:
 
     selected_item = None
     if lesson_type in ("article", "video", "article_with_video"):
-        selected_item = pick_content(items, language, lesson_type, topic)
+        selected_item = pick_content(items, language, lesson_type, topic, student_id, cooldown_days)
         if not selected_item:
             msg = f"[language-study] No content available for {language}/{lesson_type}."
             send_discord(msg)
             print("NOTION_RESULT: no_content")
             return
         selected_item["status"] = "used"
-        selected_item["used_at"] = now_iso()
+        used_by = selected_item.get("used_by") or {}
+        if not isinstance(used_by, dict):
+            used_by = {}
+        used_by[student_id] = now_iso()
+        selected_item["used_by"] = used_by
         write_json(CONTENT_LIBRARY, library)
 
     llm = load_llm_from_env(prefix="LLM")

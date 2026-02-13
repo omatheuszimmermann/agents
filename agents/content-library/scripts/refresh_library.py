@@ -262,7 +262,7 @@ def main() -> None:
     }
 
     save_json(library_path, library)
-    print(f"LIBRARY_RESULT: added={added} total={len(items)}")
+    print(f"NOTION_RESULT: content_refresh added={added} total={len(items)}")
 
 
 if __name__ == "__main__":

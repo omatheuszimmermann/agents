@@ -2,6 +2,7 @@
   "student_id": "matheus",
   "language": "en",
   "topic": "general",
+  "cooldown_days": 30,
   "schedule_override": {
     "monday": "article",
     "tuesday": "video",
