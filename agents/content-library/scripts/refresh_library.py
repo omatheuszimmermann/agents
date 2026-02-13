@@ -6,6 +6,8 @@ import hashlib
 import datetime
 import urllib.request
 import urllib.error
+import ssl
+import certifi
 import xml.etree.ElementTree as ET
 from typing import Dict, Any, List, Optional
 
@@ -34,7 +36,8 @@ def save_json(path: str, data: Any) -> None:
 def fetch_url(url: str, timeout: int = 30) -> str:
     req = urllib.request.Request(url=url, headers={"User-Agent": "curl/8.0.1"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        ctx = ssl.create_default_context(cafile=certifi.where())
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
             return resp.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"HTTP {e.code}: {e.reason} ({url})") from None
