@@ -18,6 +18,12 @@
     <key>RunAtLoad</key>
     <true/>
 
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>SSL_CERT_FILE</key>
+      <string>/usr/local/lib/python3.14/site-packages/certifi/cacert.pem</string>
+    </dict>
+
     <key>StandardOutPath</key>
     <string>/Users/matheuszimmermannai/agents/runner/logs/notion.worker.out</string>
     <key>StandardErrorPath</key>
