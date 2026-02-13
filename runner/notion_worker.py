@@ -147,7 +147,13 @@ def chunk_text(text: str, max_len: int = 1800) -> List[str]:
 
 def task_to_command(task_type: str, project: str, payload: str, page_id: str) -> List[str]:
     if task_type == "posts_create":
-        return ["python3", "agents/social-posts/scripts/generate_post.py", project]
+        return [
+            "python3",
+            "agents/social-posts/scripts/generate_post.py",
+            project,
+            "--parent-task-id",
+            page_id,
+        ]
     if task_type == "email_check":
         return [
             "python3",

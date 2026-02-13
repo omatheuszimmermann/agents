@@ -25,6 +25,7 @@ Este repo usa arquivos `.env` por componente. Sempre crie o `.env` a partir do `
   - `NOTION_API_KEY`
   - `NOTION_DB_ID`
   - `NOTION_DB_EMAILS_ID`
+  - `NOTION_DB_POSTS_ID`
   - `NOTION_MAX_TASKS` (opcional)
   - `NOTION_PROJECTS` (opcional)
   - `NOTION_SCHEDULE_FILE` (opcional)
