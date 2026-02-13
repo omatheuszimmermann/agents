@@ -120,7 +120,7 @@ def send_discord(message: str) -> None:
     notify_script = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
     if not os.path.exists(notify_script):
         return
-    channel_id = os.getenv("DISCORD_LOG_CHANNEL_ID", "").strip()
+    channel_id = os.getenv("DISCORD_LANGUAGE_CHANNEL_ID", "").strip() or os.getenv("DISCORD_LOG_CHANNEL_ID", "").strip()
     if not channel_id:
         return
     env = os.environ.copy()
