@@ -153,6 +153,71 @@ def build_prompt(lesson_type: str, language: str, item: Optional[Dict[str, Any]]
     return header + "Create a general lesson with 5 exercises.\n"
 
 
+def split_bold_segments(text: str) -> List[Dict[str, Any]]:
+    parts = text.split("**")
+    if len(parts) == 1:
+        return [{"type": "text", "text": {"content": text}}]
+    segments: List[Dict[str, Any]] = []
+    bold = False
+    for part in parts:
+        if part:
+            seg = {"type": "text", "text": {"content": part}}
+            if bold:
+                seg["annotations"] = {"bold": True}
+            segments.append(seg)
+        bold = not bold
+    return segments
+
+
+def line_to_block(line: str) -> Optional[Dict[str, Any]]:
+    raw = line.rstrip()
+    if not raw:
+        return None
+    if raw.startswith("#"):
+        title = raw.lstrip("#").strip()
+        return {
+            "object": "block",
+            "type": "paragraph",
+            "paragraph": {
+                "rich_text": split_bold_segments(title),
+            },
+        }
+    if raw.startswith("- ") or raw.startswith("* "):
+        content = raw[2:].strip()
+        return {
+            "object": "block",
+            "type": "bulleted_list_item",
+            "bulleted_list_item": {
+                "rich_text": split_bold_segments(content),
+            },
+        }
+    if len(raw) >= 3 and raw[0].isdigit() and raw[1] == "." and raw[2] == " ":
+        content = raw[3:].strip()
+        return {
+            "object": "block",
+            "type": "numbered_list_item",
+            "numbered_list_item": {
+                "rich_text": split_bold_segments(content),
+            },
+        }
+    return {
+        "object": "block",
+        "type": "paragraph",
+        "paragraph": {
+            "rich_text": split_bold_segments(raw),
+        },
+    }
+
+
+def lesson_text_to_blocks(text: str) -> List[Dict[str, Any]]:
+    blocks: List[Dict[str, Any]] = []
+    for line in text.splitlines():
+        block = line_to_block(line)
+        if block:
+            blocks.append(block)
+    return blocks
+
+
 def send_discord(message: str) -> None:
     notify_script = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
     if not os.path.exists(notify_script):
@@ -295,8 +360,9 @@ def main() -> None:
         page_url = page.get("url", "")
 
         if lesson_text:
-            chunks = [lesson_text[i:i+1800] for i in range(0, len(lesson_text), 1800)]
-            notion.append_paragraphs(page_id, chunks)
+            blocks = lesson_text_to_blocks(lesson_text)
+            for i in range(0, len(blocks), 80):
+                notion.append_blocks(page_id, blocks[i:i + 80])
 
         notify = student.get("notify", {}).get("discord", False)
         if notify:

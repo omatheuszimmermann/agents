@@ -117,6 +117,12 @@ class NotionClient:
             })
         _request(self.api_key, "PATCH", url, {"children": children})
 
+    def append_blocks(self, block_id: str, blocks: List[Dict[str, Any]]) -> None:
+        if not blocks:
+            return
+        url = f"{self.base_url}/blocks/{block_id}/children"
+        _request(self.api_key, "PATCH", url, {"children": blocks})
+
 
 def load_notion_from_env(prefix: str = "NOTION") -> NotionClient:
     api_key = os.getenv(f"{prefix}_API_KEY")
