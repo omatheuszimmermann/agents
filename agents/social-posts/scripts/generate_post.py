@@ -132,19 +132,10 @@ def render_output_markdown(post_number: int, sections: dict) -> str:
     return "\n\n".join(blocks).strip() + "\n"
 
 def build_task_body_text(sections: dict) -> str:
-    title = sections.get("title", "").strip()
     description = sections.get("description", "").strip()
     cta = sections.get("cta", "").strip()
     hashtags = sections.get("hashtags", "").strip()
-    parts = []
-    if title:
-        parts.append(f"Title: {title}")
-    if description:
-        parts.append(f"Description: {description}")
-    if cta:
-        parts.append(f"CTA: {cta}")
-    if hashtags:
-        parts.append(f"Hashtags: {hashtags}")
+    parts = [part for part in [description, cta, hashtags] if part]
     return "\n\n".join(parts).strip()
 
 def chunk_text(text: str, max_len: int = 1800) -> list[str]:
@@ -348,7 +339,7 @@ def main():
         posts_db_id = os.getenv("NOTION_DB_POSTS_ID", "").strip()
         if api_key and posts_db_id:
             notion = NotionClient(api_key=api_key, database_id=posts_db_id)
-            title = sections.get("title", "").strip() or description or f"Post #{post_number}"
+            title = f"{datetime.datetime.now().strftime('%d/%m')} - {project}"
             body_text = build_task_body_text(sections)
             props = {
                 "Title": {"title": [{"text": {"content": title}}]},
