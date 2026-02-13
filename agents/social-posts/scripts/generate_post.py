@@ -114,13 +114,13 @@ def extract_sections(markdown: str) -> dict:
     flush()
     return sections
 
-def render_output_markdown(post_number: int, sections: dict) -> str:
+def render_output_markdown(sections: dict) -> str:
     description = sections.get("description", "").strip()
     cta = sections.get("cta", "").strip()
     hashtags = sections.get("hashtags", "").strip()
     image_prompt = sections.get("image_prompt", "").strip()
 
-    blocks = [f"Post Number: #{post_number}"]
+    blocks = []
     if description:
         blocks.extend(["Description", description])
     if cta:
@@ -161,20 +161,24 @@ def chunk_text(text: str, max_len: int = 1800) -> list[str]:
     if current:
         chunks.append("\n".join(current))
     return chunks
-def build_discord_messages(markdown: str, post_number: int) -> tuple[str, str]:
-    sections = extract_sections(markdown)
+def build_discord_message(sections: dict, project: str) -> str:
+    date_str = datetime.datetime.now().strftime("%d/%m")
     description = sections.get("description", "").strip()
     cta = sections.get("cta", "").strip()
     hashtags = sections.get("hashtags", "").strip()
     image_prompt = sections.get("image_prompt", "").strip()
+    parts = [f"{date_str} - {project}"]
+    if description:
+        parts.append(description)
+    if cta:
+        parts.append(cta)
+    if hashtags:
+        parts.append(hashtags)
+    if image_prompt:
+        parts.append(f"Prompt: {image_prompt}")
+    return "\n\n".join(parts).strip()
 
-    body_parts = [part for part in [description, cta, hashtags] if part]
-    body = "\n\n".join(body_parts).strip()
-    first_message = f"#{post_number}\n\n{body}".strip() if body else f"#{post_number}"
-    prompt_message = f"#{post_number} Prompt:\n{image_prompt}".strip() if image_prompt else ""
-    return first_message, prompt_message
-
-def update_history(history_file: str, description: str) -> int:
+def update_history(history_file: str, description: str) -> None:
     history = {"posts": []}
 
     if os.path.exists(history_file):
@@ -188,54 +192,14 @@ def update_history(history_file: str, description: str) -> int:
     if not isinstance(history.get("posts"), list):
         history["posts"] = []
 
-    normalized_posts = []
-    max_existing_number = 0
-    for post in history["posts"]:
-        if isinstance(post, dict):
-            number = post.get("post_number")
-            if isinstance(number, int) and number > max_existing_number:
-                max_existing_number = number
-
-    max_post_number = max_existing_number
-    auto_number = max_existing_number + 1
-    for post in history["posts"]:
-        if not isinstance(post, dict):
-            continue
-        number = post.get("post_number")
-        if not isinstance(number, int):
-            number = auto_number
-            auto_number += 1
-        date = post.get("date")
-        if not isinstance(date, str) or not date.strip():
-            date = datetime.datetime.now().strftime("%Y-%m-%d")
-        old_description = (
-            post.get("description")
-            or post.get("caption")
-            or post.get("idea")
-            or ""
-        )
-        if not str(old_description).strip():
-            continue
-        normalized_posts.append({
-            "post_number": number,
-            "date": date,
-            "description": str(old_description).strip(),
-        })
-        if number > max_post_number:
-            max_post_number = number
-
-    history["posts"] = normalized_posts
-    post_number = max_post_number + 1
-
     history["posts"].append({
-        "post_number": post_number,
         "date": datetime.datetime.now().strftime("%Y-%m-%d"),
         "description": description.strip(),
     })
 
     with open(history_file, "w", encoding="utf-8") as f:
         json.dump(history, f, indent=2, ensure_ascii=False)
-    return post_number
+    return None
 
 def main():
     if len(sys.argv) < 2:
@@ -272,7 +236,12 @@ def main():
     history_text = ""
     if os.path.exists(history_file):
         try:
-            history_text = read_file(history_file).strip()
+            raw_history = read_file(history_file).strip()
+            history_data = json.loads(raw_history) if raw_history else {}
+            posts = history_data.get("posts", []) if isinstance(history_data, dict) else []
+            if isinstance(posts, list):
+                posts = posts[-20:]
+            history_text = json.dumps({"posts": posts}, ensure_ascii=False, indent=2)
         except Exception:
             history_text = ""
 
@@ -327,11 +296,11 @@ def main():
     description = sections.get("description", "").strip()
     if not description:
         description = sections.get("title", "").strip()
-    post_number = update_history(history_file, description)
+    update_history(history_file, description)
 
-    # Save normalized output structure with post number.
+    # Save normalized output structure.
     with open(out_file, "w", encoding="utf-8") as f:
-        f.write(render_output_markdown(post_number, sections))
+        f.write(render_output_markdown(sections))
 
     notion_page_url = ""
     try:
@@ -363,23 +332,20 @@ def main():
     if os.path.exists(notify_script):
         channel_id = os.getenv("CHANNEL_ID", "").strip()
         if channel_id:
-            normalized_content = render_output_markdown(post_number, sections)
-            first_message, prompt_message = build_discord_messages(normalized_content, post_number)
+            first_message = build_discord_message(sections, project)
+            prompt_message = ""
             env = os.environ.copy()
             try:
                 if notion_page_url:
                     first_message = f"{first_message}\n{notion_page_url}"
                 env["MSG_ARG"] = first_message
                 subprocess.run([notify_script, channel_id, first_message], check=False, env=env)
-                if prompt_message:
-                    env["MSG_ARG"] = prompt_message
-                    subprocess.run([notify_script, channel_id, prompt_message], check=False, env=env)
             except Exception:
                 pass
 
     print(out_file)
     try:
-        normalized_content = render_output_markdown(post_number, sections)
+        normalized_content = render_output_markdown(sections)
         print(f"NOTION_RESULT: {normalized_content}")
     except Exception:
         pass
