@@ -13,7 +13,6 @@ from llm_client import load_llm_from_env  # noqa: E402
 from notion_client import NotionClient  # noqa: E402
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-PROJECTS_DIR = os.path.join(BASE_DIR, "projects")
 
 
 def load_env_file(path: str) -> None:
@@ -75,18 +74,13 @@ def main() -> None:
         sys.exit(1)
 
     project = sys.argv[1]
+    _ = project  # project is ignored; kept for worker compatibility
     limit = 1
     if "--limit" in sys.argv:
         idx = sys.argv.index("--limit")
         if idx + 1 < len(sys.argv):
             limit = int(sys.argv[idx + 1])
 
-    project_dir = os.path.join(PROJECTS_DIR, project)
-    if not os.path.isdir(project_dir):
-        print(f"Project not found: {project_dir}", file=sys.stderr)
-        sys.exit(1)
-
-    load_env_file(os.path.join(project_dir, ".env"))
     load_env_file(os.path.join(BASE_DIR, ".env"))
     load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
     load_env_file(os.path.join(REPO_ROOT, "integrations", "discord", ".env"))

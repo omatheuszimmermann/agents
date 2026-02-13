@@ -35,6 +35,7 @@
 
 ## Teacher Agent
 - [ ] Create `agents/language-study/` with:
+- [ ] `config.json` (students + per-idioma schedule overrides).
 - [ ] `profiles.json` (students: name, languages, channel preferences).
 - [ ] `schedule.json` (weekly plan).
 - [ ] `scripts/lesson_send.py` (selects content + uses LLM + creates lesson page).

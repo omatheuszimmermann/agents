@@ -13,7 +13,7 @@ from llm_client import load_llm_from_env  # noqa: E402
 from notion_client import NotionClient  # noqa: E402
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-PROJECTS_DIR = os.path.join(BASE_DIR, "projects")
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 CONTENT_LIBRARY = os.path.join(REPO_ROOT, "agents", "content-library", "library.json")
 PROFILES_FILE = os.path.join(BASE_DIR, "profiles.json")
 SCHEDULE_FILE = os.path.join(BASE_DIR, "schedule.json")
@@ -181,6 +181,7 @@ def main() -> None:
         sys.exit(1)
 
     project = sys.argv[1]
+    _ = project  # project is ignored; kept for worker compatibility
     lesson_override = ""
     parent_task_id = ""
     student_filter = ""
@@ -197,21 +198,18 @@ def main() -> None:
         if idx + 1 < len(sys.argv):
             parent_task_id = sys.argv[idx + 1]
 
-    project_dir = os.path.join(PROJECTS_DIR, project)
-    config_path = os.path.join(project_dir, "config.json")
-    if not os.path.exists(config_path):
-        print(f"Project config not found: {config_path}", file=sys.stderr)
+    if not os.path.exists(CONFIG_FILE):
+        print(f"Config not found: {CONFIG_FILE}", file=sys.stderr)
         sys.exit(1)
 
     # Load envs
-    load_env_file(os.path.join(project_dir, ".env"))
     load_env_file(os.path.join(BASE_DIR, ".env"))
     load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
     load_env_file(os.path.join(REPO_ROOT, "integrations", "discord", ".env"))
 
     profiles = read_json(PROFILES_FILE, {"students": []})
     schedule = read_json(SCHEDULE_FILE, {"week": {}})
-    config = read_json(config_path, {})
+    config = read_json(CONFIG_FILE, {})
 
     library = read_json(CONTENT_LIBRARY, {"items": []})
     items = library.get("items", []) if isinstance(library, dict) else []
