@@ -281,7 +281,7 @@ def main() -> None:
             "Received At": {"date": {"start": now_iso()}},
         }
         if topic:
-            props["Topic"] = {"select": {"name": topic}}
+            props["Topic"] = {"rich_text": [{"text": {"content": topic}}]}
         if selected_item:
             if selected_item.get("url"):
                 props["Source URL"] = {"url": selected_item.get("url")}
