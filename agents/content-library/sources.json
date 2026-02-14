@@ -54,14 +54,6 @@
       "feed_url": "https://www.rainews.it/rss/homepage.xml"
     },
     {
-      "id": "il-post",
-      "name": "Il Post",
-      "language": "it",
-      "topic": "general",
-      "type": "article",
-      "feed_url": "https://www.ilpost.it/feed/"
-    },
-    {
       "id": "wired-italia",
       "name": "Wired Italia",
       "language": "it",
@@ -94,20 +86,116 @@
       "feed_url": "https://www.ansa.it/canale_saluteebenessere/notizie/rss.xml"
     },
     {
-      "id": "quotidiano-sanitario",
-      "name": "Quotidiano Sanità",
-      "language": "it",
-      "topic": "health",
-      "type": "article",
-      "feed_url": "https://www.quotidianosanita.it/rss.xml"
-    },
-    {
       "id": "nurse24",
       "name": "Nurse24",
       "language": "it",
       "topic": "health",
       "type": "article",
       "feed_url": "https://www.nurse24.it/feed/"
+    },
+    {
+      "id": "it-tgcom24-home",
+      "name": "Tgcom24 - Home page",
+      "language": "it",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "http://www.tgcom24.mediaset.it/rss/homepage.xml"
+    },
+    {
+      "id": "it-tgcom24-ultimissime",
+      "name": "Tgcom24 - Ultimissime",
+      "language": "it",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "http://www.tgcom24.mediaset.it/rss/ultimissime.xml"
+    },
+    {
+      "id": "it-tgcom24-economia",
+      "name": "Tgcom24 - Economia",
+      "language": "it",
+      "topic": "business",
+      "type": "article",
+      "feed_url": "http://www.tgcom24.mediaset.it/rss/economia.xml"
+    },
+    {
+      "id": "it-tgcom24-mondo",
+      "name": "Tgcom24 - Mondo",
+      "language": "it",
+      "topic": "world",
+      "type": "article",
+      "feed_url": "http://www.tgcom24.mediaset.it/rss/mondo.xml"
+    },
+    {
+      "id": "it-televideo-ultimora",
+      "name": "RAI Televideo - Ultim'ora",
+      "language": "it",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://www.servizitelevideo.rai.it/televideo/pub/rss101.xml"
+    },
+    {
+      "id": "it-televideo-homepage",
+      "name": "RAI Televideo - Home Page",
+      "language": "it",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://www.servizitelevideo.rai.it/televideo/pub/rsshp.xml"
+    },
+    {
+      "id": "bbc-news-youtube",
+      "name": "BBC News (YouTube)",
+      "language": "en",
+      "topic": "general",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA"
+    },
+    {
+      "id": "bbc-news-technology-youtube",
+      "name": "BBC News Technology (YouTube)",
+      "language": "en",
+      "topic": "technology",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA"
+    },
+    {
+      "id": "bloomberg-technology-youtube",
+      "name": "Bloomberg Technology (YouTube)",
+      "language": "en",
+      "topic": "technology",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCUMZ7gohGI9HcU9VNsr2FJQ"
+    },
+    {
+      "id": "cnbc-youtube",
+      "name": "CNBC (YouTube)",
+      "language": "en",
+      "topic": "business",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCvJJ_dzjViJCoLf5uKUTwoA"
+    },
+    {
+      "id": "rai-news-youtube",
+      "name": "Rai News (YouTube)",
+      "language": "it",
+      "topic": "general",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCw3U9-l57zE6h0M1C9RzWAw"
+    },
+    {
+      "id": "euronews-english-youtube",
+      "name": "Euronews English (YouTube)",
+      "language": "en",
+      "topic": "general",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCW2QcKZiU8aUGg4yxCIditg"
+    },
+    {
+      "id": "euronews-italiano-youtube",
+      "name": "Euronews Italiano (YouTube)",
+      "language": "it",
+      "topic": "general",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSrZ3UV4jOidv8ppoVuvW9Q"
     }
   ]
 }

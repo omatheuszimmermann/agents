@@ -16,7 +16,7 @@ from notion_client import NotionClient  # noqa: E402
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
-CONTENT_LIBRARY = os.path.join(REPO_ROOT, "agents", "content-library", "library.json")
+CONTENT_LIBRARY_DIR = os.path.join(REPO_ROOT, "agents", "content-library")
 PROFILES_FILE = os.path.join(BASE_DIR, "profiles.json")
 SCHEDULE_FILE = os.path.join(BASE_DIR, "schedule.json")
 
@@ -311,6 +311,11 @@ def truncate_title(text: str, max_len: int = 90) -> str:
     return t[: max_len - 2].rstrip() + ".."
 
 
+def lesson_title_fallback(lesson_type: str, language: str) -> str:
+    label = lesson_type.replace("_", " ").title()
+    return f"{label} ({language.upper()})"
+
+
 def send_discord(message: str) -> None:
     notify_script = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
     if not os.path.exists(notify_script):
@@ -331,6 +336,14 @@ def resolve_student_configs(config: Dict[str, Any]) -> List[Dict[str, Any]]:
     if isinstance(config.get("students"), list):
         return [c for c in config["students"] if isinstance(c, dict)]
     return [config]
+
+
+def library_path_for_type(lesson_type: str) -> str:
+    if lesson_type == "video":
+        return os.path.join(CONTENT_LIBRARY_DIR, "library.video.json")
+    if lesson_type == "article_with_video":
+        return os.path.join(CONTENT_LIBRARY_DIR, "library.article_with_video.json")
+    return os.path.join(CONTENT_LIBRARY_DIR, "library.article.json")
 
 
 def main() -> None:
@@ -374,9 +387,6 @@ def main() -> None:
     schedule = read_json(SCHEDULE_FILE, {"week": {}})
     config = read_json(CONFIG_FILE, {})
 
-    library = read_json(CONTENT_LIBRARY, {"items": []})
-    items = library.get("items", []) if isinstance(library, dict) else []
-
     api_key = os.getenv("NOTION_API_KEY", "").strip()
     language_db_id = os.getenv("NOTION_DB_LANGUAGE_ID", "").strip()
     if not api_key or not language_db_id:
@@ -413,6 +423,9 @@ def main() -> None:
 
         selected_item = None
         if lesson_type in ("article", "video", "article_with_video"):
+            library_path = library_path_for_type(lesson_type)
+            library = read_json(library_path, {"items": []})
+            items = library.get("items", []) if isinstance(library, dict) else []
             selected_item = pick_content(items, language, lesson_type, topic, student_id, cooldown_days)
             if not selected_item:
                 msg = f"[language-study] No content available for {language}/{lesson_type}."
@@ -424,7 +437,7 @@ def main() -> None:
                 used_by = {}
             used_by[student_id] = now_iso()
             selected_item["used_by"] = used_by
-            write_json(CONTENT_LIBRARY, library)
+            write_json(library_path, library)
 
         article_text = ""
         if selected_item and selected_item.get("url"):
@@ -449,7 +462,7 @@ def main() -> None:
 
         base_title = selected_item.get("title", "") if selected_item else ""
         if not base_title:
-            base_title = f"{student.get('name','Student')} - {lesson_type}"
+            base_title = lesson_title_fallback(lesson_type, language)
         title = truncate_title(base_title)
         props: Dict[str, Any] = {
             "Title": {"title": [{"text": {"content": title}}]},
@@ -487,7 +500,7 @@ def main() -> None:
         if notify:
             msg_lines = [
                 f"{language_icon(language)} {title}",
-                student.get("name", "Student"),
+                f"👤 {student.get('name', 'Student')}",
             ]
             if page_url:
                 msg_lines.append(page_url)

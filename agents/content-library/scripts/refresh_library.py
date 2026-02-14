@@ -14,6 +14,11 @@ from typing import Dict, Any, List, Optional
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DEFAULT_SOURCES = os.path.join(BASE_DIR, "sources.json")
 DEFAULT_LIBRARY = os.path.join(BASE_DIR, "library.json")
+LIBRARY_FILES = {
+    "article": os.path.join(BASE_DIR, "library.article.json"),
+    "video": os.path.join(BASE_DIR, "library.video.json"),
+    "article_with_video": os.path.join(BASE_DIR, "library.article_with_video.json"),
+}
 OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
 
 
@@ -217,12 +222,21 @@ def main() -> None:
     max_age_days = int(rules.get("max_age_days", 45))
     max_items_per_source = int(rules.get("max_items_per_source", 50))
 
-    library = load_json(library_path, {"items": [], "updated_at": ""})
-    items = library.get("items", []) if isinstance(library, dict) else []
-    if not isinstance(items, list):
-        items = []
+    libraries: Dict[str, Dict[str, Any]] = {}
+    items_by_type: Dict[str, List[Dict[str, Any]]] = {}
+    total_existing = 0
+    for t, path in LIBRARY_FILES.items():
+        lib = load_json(path, {"items": [], "updated_at": ""})
+        libs_items = lib.get("items", []) if isinstance(lib, dict) else []
+        if not isinstance(libs_items, list):
+            libs_items = []
+        libraries[t] = lib
+        items_by_type[t] = libs_items
+        total_existing += len(libs_items)
 
-    index = ensure_library_index(items)
+    index = {}
+    for t_items in items_by_type.values():
+        index.update(ensure_library_index(t_items))
     added = 0
 
     for src in sources:
@@ -246,26 +260,38 @@ def main() -> None:
             key = normalized.get("url") or normalized.get("id")
             if not key or key in index:
                 continue
-            items.append(normalized)
+            item_type = normalized.get("type") or ""
+            if item_type not in items_by_type:
+                continue
+            items_by_type[item_type].append(normalized)
             index[key] = normalized
             added += 1
 
     # Enforce minimum counts by category (best-effort)
     # If below min_items, we keep everything and rely on next refresh.
-    mark_stale(items, max_age_days)
+    total_items = 0
+    for t, items in items_by_type.items():
+        mark_stale(items, max_age_days)
+        library = {
+            "updated_at": now_iso(),
+            "items": items,
+            "rules": {
+                "min_items": min_items,
+                "max_age_days": max_age_days,
+                "max_items_per_source": max_items_per_source,
+            },
+        }
+        save_json(LIBRARY_FILES[t], library)
+        total_items += len(items)
 
-    library = {
+    # keep legacy library.json as a small index only
+    legacy = {
         "updated_at": now_iso(),
-        "items": items,
-        "rules": {
-            "min_items": min_items,
-            "max_age_days": max_age_days,
-            "max_items_per_source": max_items_per_source,
-        },
+        "total_items": total_items,
+        "by_type": {t: len(items) for t, items in items_by_type.items()},
     }
-
-    save_json(library_path, library)
-    print(f"NOTION_RESULT: content_refresh added={added} total={len(items)}")
+    save_json(library_path, legacy)
+    print(f"NOTION_RESULT: content_refresh added={added} total={total_items}")
 
 
 if __name__ == "__main__":
