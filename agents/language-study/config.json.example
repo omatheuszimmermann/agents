@@ -5,6 +5,7 @@
       "language": "en",
       "topic": "general",
       "article_max_chars": 2000,
+      "video_max_chars": 1500,
       "cooldown_days": 30,
       "schedule_override": {
         "monday": "article",
@@ -19,6 +20,7 @@
       "language": "it",
       "topic": "general",
       "article_max_chars": 2000,
+      "video_max_chars": 1500,
       "cooldown_days": 30,
       "schedule_override": {
         "monday": "video",

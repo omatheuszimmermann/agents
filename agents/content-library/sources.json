@@ -179,7 +179,7 @@
       "language": "it",
       "topic": "general",
       "type": "video",
-      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCw3U9-l57zE6h0M1C9RzWAw"
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCxqR9g_1XlnfrqwHK9viwCw"
     },
     {
       "id": "euronews-english-youtube",
@@ -187,7 +187,7 @@
       "language": "en",
       "topic": "general",
       "type": "video",
-      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCW2QcKZiU8aUGg4yxCIditg"
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSrZ3UV4jOidv8ppoVuvW9Q"
     },
     {
       "id": "euronews-italiano-youtube",
@@ -195,7 +195,7 @@
       "language": "it",
       "topic": "general",
       "type": "video",
-      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSrZ3UV4jOidv8ppoVuvW9Q"
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC1mX9vuLOYf8fhaXS_KcDRg"
     }
   ]
 }

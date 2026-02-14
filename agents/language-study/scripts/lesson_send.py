@@ -5,6 +5,7 @@ import json
 import datetime
 import re
 from html import unescape
+from urllib.parse import urlparse, parse_qs
 from typing import Any, Dict, List, Optional
 
 # Import llm_client.py and notion_client.py from shared/python
@@ -198,6 +199,33 @@ def extract_article_text(html: str) -> str:
         if len(p) >= 40:
             texts.append(p)
     return "\n".join(texts).strip()
+
+
+def extract_youtube_id(url: str) -> str:
+    if not url:
+        return ""
+    parsed = urlparse(url)
+    if parsed.netloc.endswith("youtube.com"):
+        qs = parse_qs(parsed.query)
+        return (qs.get("v") or [""])[0]
+    if parsed.netloc.endswith("youtu.be"):
+        return parsed.path.lstrip("/")
+    return ""
+
+
+def fetch_youtube_caption(video_id: str, language: str) -> str:
+    if not video_id:
+        return ""
+    lang = "en" if language == "en" else "it"
+    url = f"https://video.google.com/timedtext?lang={lang}&v={video_id}"
+    xml_text = fetch_url_text(url, timeout=20)
+    # captions are XML with <text> nodes
+    parts = re.findall(r"(?is)<text[^>]*>(.*?)</text>", xml_text)
+    if not parts:
+        return ""
+    text = " ".join(unescape(p) for p in parts)
+    text = re.sub(r"\\s+", " ", text).strip()
+    return text
 
 
 def build_prompt_with_article(
@@ -440,11 +468,18 @@ def main() -> None:
         article_text = ""
         if selected_item and selected_item.get("url"):
             try:
-                raw_html = fetch_url_text(selected_item.get("url"))
-                extracted = extract_article_text(raw_html)
-                max_chars = int(student_cfg.get("article_max_chars", 2000))
-                if extracted:
-                    article_text = extracted[:max_chars]
+                if lesson_type == "video":
+                    video_id = extract_youtube_id(selected_item.get("url"))
+                    caption = fetch_youtube_caption(video_id, language)
+                    max_chars = int(student_cfg.get("video_max_chars", 1500))
+                    if caption:
+                        article_text = caption[:max_chars]
+                else:
+                    raw_html = fetch_url_text(selected_item.get("url"))
+                    extracted = extract_article_text(raw_html)
+                    max_chars = int(student_cfg.get("article_max_chars", 2000))
+                    if extracted:
+                        article_text = extracted[:max_chars]
             except Exception:
                 article_text = ""
 
