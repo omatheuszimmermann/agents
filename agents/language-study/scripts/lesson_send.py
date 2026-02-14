@@ -341,8 +341,6 @@ def resolve_student_configs(config: Dict[str, Any]) -> List[Dict[str, Any]]:
 def library_path_for_type(lesson_type: str) -> str:
     if lesson_type == "video":
         return os.path.join(CONTENT_LIBRARY_DIR, "library.video.json")
-    if lesson_type == "article_with_video":
-        return os.path.join(CONTENT_LIBRARY_DIR, "library.article_with_video.json")
     return os.path.join(CONTENT_LIBRARY_DIR, "library.article.json")
 
 
@@ -422,7 +420,7 @@ def main() -> None:
         lesson_type = select_lesson_type(local_schedule, lesson_override)
 
         selected_item = None
-        if lesson_type in ("article", "video", "article_with_video"):
+        if lesson_type in ("article", "video"):
             library_path = library_path_for_type(lesson_type)
             library = read_json(library_path, {"items": []})
             items = library.get("items", []) if isinstance(library, dict) else []

@@ -17,7 +17,6 @@ DEFAULT_LIBRARY = os.path.join(BASE_DIR, "library.json")
 LIBRARY_FILES = {
     "article": os.path.join(BASE_DIR, "library.article.json"),
     "video": os.path.join(BASE_DIR, "library.video.json"),
-    "article_with_video": os.path.join(BASE_DIR, "library.article_with_video.json"),
 }
 OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
 

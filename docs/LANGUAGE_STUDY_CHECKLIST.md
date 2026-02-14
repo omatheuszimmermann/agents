@@ -9,7 +9,7 @@
 - [ ] `Status` (status: `pending`, `ready`, `done`)
 - [ ] `Student` (select)
 - [ ] `Language` (select: `en`, `it`)
-- [ ] `Lesson Type` (select: `article`, `video`, `grammar`, `exercises`, `article_with_video`)
+- [ ] `Lesson Type` (select: `article`, `video`, `grammar`, `exercises`, `review`)
 - [ ] `Topic` (select or text)
 - [ ] `Source URL` (url)
 - [ ] `Content` (rich text)
