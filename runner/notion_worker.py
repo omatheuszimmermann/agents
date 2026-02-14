@@ -188,9 +188,12 @@ def task_to_command(task_type: str, project: str, payload: str, page_id: str) ->
                 data = json.loads(payload)
                 if isinstance(data, dict):
                     student_id = str(data.get("student_id", "")).strip()
+                    language = str(data.get("language", "")).strip()
                     lesson_type = str(data.get("lesson_type", "")).strip()
                     if student_id:
                         cmd.extend(["--student-id", student_id])
+                    if language:
+                        cmd.extend(["--language", language])
                     if lesson_type:
                         cmd.extend(["--lesson-type", lesson_type])
             except Exception:

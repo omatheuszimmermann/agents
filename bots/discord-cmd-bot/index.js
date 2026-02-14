@@ -148,8 +148,15 @@ client.on("messageCreate", async (msg) => {
     const text = msg.content.replace(/<@!?\d+>/g, "").trim();
     const parts = text.split(/\s+/).filter(Boolean);
 
-    const help =
-      "Comandos válidos: `posts create <project>` | `email last <project>` | `languages refresh` | `languages send <student_id> [lesson_type|random]` | `help commands` | `help projects`";
+    const help = [
+      "Comandos válidos:",
+      "- `posts create <project>`",
+      "- `email last <project>`",
+      "- `languages refresh`",
+      "- `languages send <student_id> [language] [lesson_type|random]`",
+      "- `help commands`",
+      "- `help projects`",
+    ].join("\n");
 
     if (parts.length === 0) {
       await msg.reply(`❌ Comando incompleto. ${help}`);
@@ -224,22 +231,29 @@ client.on("messageCreate", async (msg) => {
 
     let notionProject = project;
     let payloadText = "";
-    if (domain === "languages") {
-      notionProject = "languages";
-      if (action === "send") {
-        const studentId = (parts[2] || "").toLowerCase();
-        const lessonType = (parts[3] || "").toLowerCase();
-        if (!studentId) {
-          await msg.reply(`❌ Falta o student_id. ${help}`);
-          return;
-        }
-        if (lessonType && lessonType !== "random") {
-          payloadText = JSON.stringify({ student_id: studentId, lesson_type: lessonType });
-        } else {
-          payloadText = JSON.stringify({ student_id: studentId });
+      if (domain === "languages") {
+        notionProject = "languages";
+        if (action === "send") {
+          const studentId = (parts[2] || "").toLowerCase();
+          const language = (parts[3] || "").toLowerCase();
+          const lessonType = (parts[4] || "").toLowerCase();
+          if (!studentId) {
+            await msg.reply(`❌ Falta o student_id. ${help}`);
+            return;
+          }
+          const payloadObj = { student_id: studentId };
+          if (language) payloadObj.language = language;
+          if (lessonType && lessonType !== "random") {
+            payloadObj.lesson_type = lessonType;
+          }
+          payloadText = JSON.stringify(payloadObj);
+          if (lessonType && lessonType === "random") {
+            payloadText = JSON.stringify(payloadObj);
+          } else {
+            payloadText = JSON.stringify(payloadObj);
+          }
         }
       }
-    }
 
     const name = `${domain} ${action} ${notionProject}`;
     const icon = iconForTaskType(taskType);

@@ -132,9 +132,19 @@ def pick_content(
     return candidates[0] if candidates else None
 
 
+def language_label(language: str) -> str:
+    if language == "en":
+        return "English"
+    if language == "it":
+        return "Italian"
+    return language
+
+
 def build_prompt(lesson_type: str, language: str, item: Optional[Dict[str, Any]]) -> str:
+    lang_label = language_label(language)
     header = (
-        f"You are a language teacher. Create a lesson in {language}.\n"
+        f"You are a language teacher. Create a lesson in {lang_label}.\n"
+        f"Write ONLY in {lang_label}. Do not use any other language.\n"
         "Return ONLY the lesson text.\n"
         "Use short sections and bullet points where helpful.\n"
     )
@@ -196,8 +206,10 @@ def build_prompt_with_article(
     item: Optional[Dict[str, Any]],
     article_text: str,
 ) -> str:
+    lang_label = language_label(language)
     header = (
-        f"You are a language teacher. Create a lesson in {language}.\n"
+        f"You are a language teacher. Create a lesson in {lang_label}.\n"
+        f"Write ONLY in {lang_label}. Do not use any other language.\n"
         "Return ONLY the lesson text.\n"
         "Use short sections and bullet points where helpful.\n"
     )
@@ -323,7 +335,7 @@ def resolve_student_configs(config: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: lesson_send.py <project> [--student-id <id>] [--lesson-type <type>] [--parent-task-id <notion_page_id>]", file=sys.stderr)
+        print("Usage: lesson_send.py <project> [--student-id <id>] [--language <code>] [--lesson-type <type>] [--parent-task-id <notion_page_id>]", file=sys.stderr)
         sys.exit(1)
 
     project = sys.argv[1]
@@ -331,10 +343,15 @@ def main() -> None:
     lesson_override = ""
     parent_task_id = ""
     student_filter = ""
+    language_filter = ""
     if "--student-id" in sys.argv:
         idx = sys.argv.index("--student-id")
         if idx + 1 < len(sys.argv):
             student_filter = sys.argv[idx + 1]
+    if "--language" in sys.argv:
+        idx = sys.argv.index("--language")
+        if idx + 1 < len(sys.argv):
+            language_filter = sys.argv[idx + 1]
     if "--lesson-type" in sys.argv:
         idx = sys.argv.index("--lesson-type")
         if idx + 1 < len(sys.argv):
@@ -370,6 +387,8 @@ def main() -> None:
     student_configs = resolve_student_configs(config)
     if student_filter:
         student_configs = [c for c in student_configs if c.get("student_id") == student_filter]
+    if language_filter:
+        student_configs = [c for c in student_configs if (c.get("language") or "") == language_filter]
     if not student_configs:
         raise RuntimeError("config.json missing student configs")
 
