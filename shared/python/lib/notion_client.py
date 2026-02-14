@@ -92,12 +92,19 @@ class NotionClient:
         page = _request(self.api_key, "POST", url, payload)
         return page
 
-    def create_page(self, properties: Dict[str, Any], children: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def create_page(
+        self,
+        properties: Dict[str, Any],
+        children: Optional[List[Dict[str, Any]]] = None,
+        icon_emoji: Optional[str] = None,
+    ) -> Dict[str, Any]:
         url = f"{self.base_url}/pages"
         payload: Dict[str, Any] = {
             "parent": {"database_id": self.database_id},
             "properties": properties,
         }
+        if icon_emoji:
+            payload["icon"] = {"emoji": icon_emoji}
         if children:
             payload["children"] = children
         return _request(self.api_key, "POST", url, payload)

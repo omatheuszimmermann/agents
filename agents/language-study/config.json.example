@@ -4,6 +4,7 @@
       "student_id": "matheus_en",
       "language": "en",
       "topic": "general",
+      "article_max_chars": 2000,
       "cooldown_days": 30,
       "schedule_override": {
         "monday": "article",
@@ -17,6 +18,7 @@
       "student_id": "matheus_it",
       "language": "it",
       "topic": "general",
+      "article_max_chars": 2000,
       "cooldown_days": 30,
       "schedule_override": {
         "monday": "video",

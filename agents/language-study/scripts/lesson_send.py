@@ -3,6 +3,8 @@ import os
 import sys
 import json
 import datetime
+import re
+from html import unescape
 from typing import Any, Dict, List, Optional
 
 # Import llm_client.py and notion_client.py from shared/python
@@ -153,6 +155,68 @@ def build_prompt(lesson_type: str, language: str, item: Optional[Dict[str, Any]]
     return header + "Create a general lesson with 5 exercises.\n"
 
 
+def fetch_url_text(url: str, timeout: int = 30) -> str:
+    import ssl
+    import certifi
+    import urllib.request
+    import urllib.error
+
+    req = urllib.request.Request(url=url, headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        ctx = ssl.create_default_context(cafile=certifi.where())
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"HTTP {e.code}: {e.reason} ({url})") from None
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"URL error: {e} ({url})") from None
+
+
+def extract_article_text(html: str) -> str:
+    if not html:
+        return ""
+    cleaned = re.sub(r"(?is)<(script|style|noscript).*?>.*?</\\1>", " ", html)
+    cleaned = re.sub(r"(?is)<!--.*?-->", " ", cleaned)
+    paragraphs = re.findall(r"(?is)<p[^>]*>(.*?)</p>", cleaned)
+    if not paragraphs:
+        return ""
+    texts = []
+    for p in paragraphs:
+        p = re.sub(r"(?is)<[^>]+>", " ", p)
+        p = unescape(p)
+        p = re.sub(r"\\s+", " ", p).strip()
+        if len(p) >= 40:
+            texts.append(p)
+    return "\n".join(texts).strip()
+
+
+def build_prompt_with_article(
+    lesson_type: str,
+    language: str,
+    item: Optional[Dict[str, Any]],
+    article_text: str,
+) -> str:
+    header = (
+        f"You are a language teacher. Create a lesson in {language}.\n"
+        "Return ONLY the lesson text.\n"
+        "Use short sections and bullet points where helpful.\n"
+    )
+    if article_text:
+        return (
+            header
+            + "Use ONLY the article text below. Do not invent facts.\n"
+            + "Include 3 short quotes from the article (<=12 words each).\n"
+            + "Vocabulary must come from the article text.\n\n"
+            + f"ARTICLE TITLE: {item.get('title','') if item else ''}\n"
+            + f"ARTICLE URL: {item.get('url','') if item else ''}\n"
+            + "ARTICLE TEXT:\n"
+            + article_text
+            + "\n\n"
+            + "Create: brief intro, key vocabulary, 5 comprehension questions, and 5 exercises.\n"
+        )
+    return build_prompt(lesson_type, language, item)
+
+
 def split_bold_segments(text: str) -> List[Dict[str, Any]]:
     parts = text.split("**")
     if len(parts) == 1:
@@ -216,6 +280,23 @@ def lesson_text_to_blocks(text: str) -> List[Dict[str, Any]]:
         if block:
             blocks.append(block)
     return blocks
+
+
+def language_icon(language: str) -> str:
+    if language == "en":
+        return "🇺🇸"
+    if language == "it":
+        return "🇮🇹"
+    return "📘"
+
+
+def truncate_title(text: str, max_len: int = 90) -> str:
+    if not text:
+        return "Lesson"
+    t = text.strip()
+    if len(t) <= max_len:
+        return t
+    return t[: max_len - 2].rstrip() + ".."
 
 
 def send_discord(message: str) -> None:
@@ -326,7 +407,18 @@ def main() -> None:
             selected_item["used_by"] = used_by
             write_json(CONTENT_LIBRARY, library)
 
-        prompt = build_prompt(lesson_type, language, selected_item)
+        article_text = ""
+        if selected_item and selected_item.get("url"):
+            try:
+                raw_html = fetch_url_text(selected_item.get("url"))
+                extracted = extract_article_text(raw_html)
+                max_chars = int(student_cfg.get("article_max_chars", 2000))
+                if extracted:
+                    article_text = extracted[:max_chars]
+            except Exception:
+                article_text = ""
+
+        prompt = build_prompt_with_article(lesson_type, language, selected_item, article_text)
         lesson_text = llm.chat(
             messages=[
                 {"role": "system", "content": "Return only the lesson text."},
@@ -336,7 +428,10 @@ def main() -> None:
             max_tokens=int(os.getenv("LLM_MAX_TOKENS", "700")),
         )
 
-        title = f"{datetime.date.today().isoformat()} - {student.get('name','Student')} - {lesson_type}"
+        base_title = selected_item.get("title", "") if selected_item else ""
+        if not base_title:
+            base_title = f"{student.get('name','Student')} - {lesson_type}"
+        title = truncate_title(base_title)
         props: Dict[str, Any] = {
             "Title": {"title": [{"text": {"content": title}}]},
             "Status": {"status": {"name": "pending"}},
@@ -350,12 +445,17 @@ def main() -> None:
         if selected_item:
             if selected_item.get("url"):
                 props["Source URL"] = {"url": selected_item.get("url")}
-            if selected_item.get("summary"):
-                props["Content"] = {"rich_text": [{"text": {"content": selected_item.get("summary")[:2000]}}]}
+            content_value = ""
+            if article_text:
+                content_value = article_text[:2000]
+            elif selected_item.get("summary"):
+                content_value = selected_item.get("summary")[:2000]
+            if content_value:
+                props["Content"] = {"rich_text": [{"text": {"content": content_value}}]}
         if parent_task_id:
             props["Parent Task"] = {"relation": [{"id": parent_task_id}]}
 
-        page = notion.create_page(properties=props)
+        page = notion.create_page(properties=props, icon_emoji=language_icon(language))
         page_id = page.get("id", "")
         page_url = page.get("url", "")
 
