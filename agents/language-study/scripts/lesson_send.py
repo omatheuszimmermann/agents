@@ -466,10 +466,13 @@ def main() -> None:
 
         notify = student.get("notify", {}).get("discord", False)
         if notify:
-            msg = f"[language-study] Lesson ready: {title}"
+            msg_lines = [
+                f"{language_icon(language)} {title}",
+                student.get("name", "Student"),
+            ]
             if page_url:
-                msg = f"{msg}\n{page_url}"
-            send_discord(msg)
+                msg_lines.append(page_url)
+            send_discord("\n".join(msg_lines))
 
         created += 1
 
