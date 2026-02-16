@@ -62,7 +62,8 @@ def build_prompt(language: str, lesson_type: str, content: str, responses: str) 
     return (
         f"You are a language teacher. Correct the student's answers in {language}.\n"
         f"Lesson type: {lesson_type}.\n"
-        "Return: corrected answers + short explanations for mistakes.\n\n"
+        "Return: corrected answers + short explanations for mistakes.\n"
+        "Also include a final line with the accuracy percentage (e.g., Accuracy: 70%).\n\n"
         f"Lesson content:\n{content}\n\n"
         f"Student responses:\n{responses}\n"
     )
@@ -102,6 +103,11 @@ def main() -> None:
     ]
     if student_filter:
         base_filters.append({"property": "Student", "select": {"equals": student_filter}})
+    # Requires a select property in the Language DB to control correction flow.
+    correction_prop = os.getenv("LANGUAGE_CORRECTION_STATUS_PROP", "Correction Status").strip()
+    correction_pending = os.getenv("LANGUAGE_CORRECTION_PENDING", "To Correct").strip()
+    correction_done = os.getenv("LANGUAGE_CORRECTION_DONE", "Corrected").strip()
+    base_filters.append({"property": correction_prop, "select": {"equals": correction_pending}})
     filt = {"and": base_filters}
     pages = notion.query_database(filter_obj=filt, limit=max(1, min(limit, 10)))
     if not pages:
@@ -133,7 +139,7 @@ def main() -> None:
         page_id = page.get("id")
         notion.update_page(page_id, {
             "Correction": {"rich_text": [{"text": {"content": correction[:2000]}}]},
-            "Status": {"status": {"name": "done"}},
+            correction_prop: {"select": {"name": correction_done}},
         })
 
         chunks = [correction[i:i+1800] for i in range(0, len(correction), 1800)]

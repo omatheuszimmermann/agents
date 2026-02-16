@@ -148,6 +148,8 @@ def build_prompt(lesson_type: str, language: str, item: Optional[Dict[str, Any]]
         f"You are a language teacher. Create a lesson in {lang_label}.\n"
         f"Write ONLY in {lang_label}. Do not use any other language.\n"
         "Return ONLY the lesson text.\n"
+        "Do NOT provide answer keys or solutions.\n"
+        "Do NOT repeat questions; each question must be unique.\n"
         "Use short sections and bullet points where helpful.\n"
     )
     if lesson_type in ("article", "video", "article_with_video") and item:
@@ -247,7 +249,9 @@ def build_prompt_with_article(
             header
             + "Use ONLY the article text below. Do not invent facts.\n"
             + "Include 3 short quotes from the article (<=12 words each).\n"
-            + "Vocabulary must come from the article text.\n\n"
+            + "Vocabulary must come from the article text.\n"
+            + "Do NOT provide answer keys or solutions.\n\n"
+            + "Do NOT repeat questions; each question must be unique.\n\n"
             + f"ARTICLE TITLE: {item.get('title','') if item else ''}\n"
             + f"ARTICLE URL: {item.get('url','') if item else ''}\n"
             + "ARTICLE TEXT:\n"
