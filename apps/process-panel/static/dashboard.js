@@ -33,6 +33,20 @@ function formatAge(seconds) {
   return formatDuration(seconds);
 }
 
+function formatDateTime(value) {
+  if (!value) return "—";
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(dt);
+}
+
 function buildTable(headers, rows) {
   const head = document.createElement("div");
   head.className = "table-head";
@@ -142,12 +156,41 @@ function renderAvgDuration() {
   container.appendChild(buildTable(["Categoria", "Media", "Ultimo ciclo"], rows));
 }
 
+function renderOpsHealth() {
+  const container = document.getElementById("opsHealthContent");
+  container.innerHTML = "";
+  const agents = Object.values(state.data.agents || {});
+  const totals = agents.reduce(
+    (acc, stats) => {
+      acc.runs += stats.runs_last || 0;
+      acc.failed += stats.failed_last || 0;
+      acc.items += stats.items_last || 0;
+      acc.duration += stats.duration_last_sec || 0;
+      return acc;
+    },
+    { runs: 0, failed: 0, items: 0, duration: 0 }
+  );
+  const failureRate = totals.runs ? totals.failed / totals.runs : null;
+  const avgDuration = totals.runs ? totals.duration / totals.runs : null;
+
+  const grid = document.createElement("div");
+  grid.className = "ops-grid";
+  grid.innerHTML = `
+    <div><span class="label">Execucoes (7d)</span><span class="value">${formatNumber(totals.runs)}</span></div>
+    <div><span class="label">Falhas (7d)</span><span class="value">${formatNumber(totals.failed)}</span></div>
+    <div><span class="label">Taxa de falha</span><span class="value">${formatRate(failureRate)}</span></div>
+    <div><span class="label">Tempo medio</span><span class="value">${formatDuration(avgDuration)}</span></div>
+    <div><span class="label">Itens processados</span><span class="value">${formatNumber(totals.items)}</span></div>
+  `;
+  container.appendChild(grid);
+}
+
 function renderBacklog() {
   const container = document.getElementById("backlogContent");
   container.innerHTML = "";
   const data = state.data.backlog_estimate || {};
   const total = data.last_tasks_seen ?? "—";
-  const lastCheck = data.last_check_at || "—";
+  const lastCheck = formatDateTime(data.last_check_at);
   const wrapper = document.createElement("div");
   wrapper.className = "backlog-grid";
 
@@ -184,7 +227,7 @@ function renderLastSuccess() {
   container.innerHTML = "";
   const rows = Object.entries(state.data.agents || {}).map(([id, stats]) => [
     state.agentsLabel[id] || id,
-    stats.last_success_at || "—",
+    formatDateTime(stats.last_success_at),
     formatAge(stats.last_success_age_sec)
   ]);
   container.appendChild(buildTable(["Agente", "Ultimo sucesso", "Tempo desde"], rows));
@@ -197,11 +240,10 @@ function renderErrorTrend() {
     const trend = (stats.trend_last_days || []).map((entry) => entry.failed);
     return [
       state.agentsLabel[id] || id,
-      trend.join(" · "),
-      (stats.trend_last_days || []).map((entry) => entry.date.slice(5)).join(" ")
+      trend.join(" · ")
     ];
   });
-  container.appendChild(buildTable(["Agente", "Falhas (7d)", "Dias"], rows));
+  container.appendChild(buildTable(["Agente", "Falhas (7d)"], rows));
 }
 
 function renderDashboard() {
@@ -210,6 +252,7 @@ function renderDashboard() {
   renderItemsPerRun();
   renderFailureRates();
   renderAvgDuration();
+  renderOpsHealth();
   renderBacklog();
   renderLastSuccess();
   renderErrorTrend();

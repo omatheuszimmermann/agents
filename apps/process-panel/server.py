@@ -250,6 +250,8 @@ def summarize_usage_entry(entry: Dict, days: List[str]) -> Dict:
     by_day = entry.get("by_day") or {}
     runs_last = sum(int(by_day.get(day, {}).get("runs", 0)) for day in days)
     failed_last = sum(int(by_day.get(day, {}).get("failed", 0)) for day in days)
+    duration_last = sum(float(by_day.get(day, {}).get("duration_sec", 0.0)) for day in days)
+    items_last = sum(int(by_day.get(day, {}).get("items", 0)) for day in days)
     total_runs = int(entry.get("runs_total", 0))
     total_failed = int(entry.get("runs_failed", 0))
     total_items = int(entry.get("total_items", 0))
@@ -270,6 +272,8 @@ def summarize_usage_entry(entry: Dict, days: List[str]) -> Dict:
         "runs_failed": total_failed,
         "runs_last": runs_last,
         "failed_last": failed_last,
+        "duration_last_sec": duration_last,
+        "items_last": items_last,
         "total_items": total_items,
         "total_duration_sec": total_duration,
         "avg_duration_sec": avg_duration,

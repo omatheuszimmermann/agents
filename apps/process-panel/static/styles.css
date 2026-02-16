@@ -345,6 +345,18 @@ h3 {
   border: 1px solid rgba(31, 27, 22, 0.08);
 }
 
+.ops-health {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ops-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
 .table-row .status-pill {
   justify-self: start;
   padding: 4px 10px;
