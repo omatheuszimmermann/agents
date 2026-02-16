@@ -59,26 +59,8 @@ def add_months(d: datetime.date, months: int, day_override: Optional[int] = None
     return datetime.date(year, month, day)
 
 
-def next_due_date(due: datetime.date, recurrence: str, recurrence_day: Optional[int]) -> Optional[datetime.date]:
-    if recurrence == "daily":
-        return due + datetime.timedelta(days=1)
-    if recurrence == "weekly":
-        if recurrence_day is None:
-            return due + datetime.timedelta(days=7)
-        # recurrence_day: 0=Monday..6=Sunday
-        target = int(recurrence_day)
-        for i in range(1, 8):
-            candidate = due + datetime.timedelta(days=i)
-            if candidate.weekday() == target:
-                return candidate
-        return due + datetime.timedelta(days=7)
-    if recurrence == "monthly":
-        return add_months(due, 1, day_override=recurrence_day)
-    if recurrence == "quarterly":
-        return add_months(due, 3, day_override=recurrence_day)
-    if recurrence == "yearly":
-        return add_months(due, 12, day_override=recurrence_day)
-    return None
+def normalize_recurrence(value: str) -> str:
+    return (value or "").strip().lower()
 
 
 def prop_select(value: str) -> Dict[str, Any]:
@@ -215,12 +197,38 @@ def is_template_status(status: str) -> bool:
     return status == "Recurrence"
 
 
-def compute_next_due(base_due: datetime.date, recurrence: str, recurrence_day: Optional[int]) -> datetime.date:
-    next_due = next_due_date(base_due, recurrence, recurrence_day) or base_due
+def compute_next_due(base_due: datetime.date, recurrence: str, recurrence_day: Optional[int]) -> Optional[datetime.date]:
+    rec = normalize_recurrence(recurrence)
+    if not rec:
+        return None
+
     today = today_date()
-    while next_due < today:
-        next_due = next_due_date(next_due, recurrence, recurrence_day) or next_due
-    return next_due
+    candidate = base_due
+
+    if rec == "daily":
+        while candidate < today:
+            candidate = candidate + datetime.timedelta(days=1)
+        return candidate
+
+    if rec == "weekly":
+        if recurrence_day is not None:
+            target = int(recurrence_day)
+            candidate = today
+            while candidate.weekday() != target:
+                candidate = candidate + datetime.timedelta(days=1)
+            return candidate
+        while candidate < today:
+            candidate = candidate + datetime.timedelta(days=7)
+        return candidate
+
+    if rec in {"monthly", "quarterly", "yearly"}:
+        step = 1 if rec == "monthly" else 3 if rec == "quarterly" else 12
+        day_override = recurrence_day
+        while candidate < today:
+            candidate = add_months(candidate, step, day_override)
+        return candidate
+
+    return None
 
 
 def create_recurring(notion: NotionClient) -> int:
@@ -241,7 +249,8 @@ def create_recurring(notion: NotionClient) -> int:
         if get_prop_relation_ids(page, "Parent Task"):
             continue
         recurrence = get_prop_select(page, "Recurrence")
-        if not recurrence or recurrence == "none":
+        rec_norm = normalize_recurrence(recurrence)
+        if not rec_norm or rec_norm == "none":
             continue
         due_raw = get_prop_date(page, "Due")
         due_date = parse_date(due_raw or "")
@@ -250,6 +259,8 @@ def create_recurring(notion: NotionClient) -> int:
 
         recurrence_day = get_prop_number(page, "Recurrence Day")
         next_due = compute_next_due(due_date, recurrence, recurrence_day)
+        if not next_due:
+            continue
         name = get_prop_title(page, "Name")
         if not name:
             continue
