@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import datetime
+import random
 import re
 from html import unescape
 from urllib.parse import urlparse, parse_qs
@@ -374,7 +375,7 @@ def library_path_for_type(lesson_type: str) -> str:
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: lesson_send.py <project> [--student-id <id>] [--language <code>] [--lesson-type <type>] [--parent-task-id <notion_page_id>]", file=sys.stderr)
+        print("Usage: lesson_send.py <project> [--student-id <id>] [--topic <name>] [--lesson-type <type>] [--parent-task-id <notion_page_id>]", file=sys.stderr)
         sys.exit(1)
 
     project = sys.argv[1]
@@ -382,15 +383,15 @@ def main() -> None:
     lesson_override = ""
     parent_task_id = ""
     student_filter = ""
-    language_filter = ""
+    topic_filter = ""
     if "--student-id" in sys.argv:
         idx = sys.argv.index("--student-id")
         if idx + 1 < len(sys.argv):
             student_filter = sys.argv[idx + 1]
-    if "--language" in sys.argv:
-        idx = sys.argv.index("--language")
+    if "--topic" in sys.argv:
+        idx = sys.argv.index("--topic")
         if idx + 1 < len(sys.argv):
-            language_filter = sys.argv[idx + 1]
+            topic_filter = sys.argv[idx + 1]
     if "--lesson-type" in sys.argv:
         idx = sys.argv.index("--lesson-type")
         if idx + 1 < len(sys.argv):
@@ -423,8 +424,6 @@ def main() -> None:
     student_configs = resolve_student_configs(config)
     if student_filter:
         student_configs = [c for c in student_configs if c.get("student_id") == student_filter]
-    if language_filter:
-        student_configs = [c for c in student_configs if (c.get("language") or "") == language_filter]
     if not student_configs:
         raise RuntimeError("config.json missing student configs")
 
@@ -436,7 +435,16 @@ def main() -> None:
 
         student = get_student(profiles, student_id)
         language = student_cfg.get("language") or (student.get("languages") or [""])[0]
-        topic = student_cfg.get("topic", "")
+        topics_cfg = student_cfg.get("topics")
+        if isinstance(topics_cfg, list):
+            topics = [str(t).strip() for t in topics_cfg if str(t).strip()]
+        else:
+            topic_single = str(student_cfg.get("topic", "")).strip()
+            topics = [topic_single] if topic_single else []
+        if topic_filter:
+            topic = topic_filter
+        else:
+            topic = random.choice(topics) if topics else ""
         cooldown_days = int(student_cfg.get("cooldown_days", 30))
         schedule_override = student_cfg.get("schedule_override") or {}
         local_schedule = schedule

@@ -3,7 +3,7 @@
     {
       "student_id": "matheus_en",
       "language": "en",
-      "topic": "general",
+      "topics": ["general", "technology"],
       "article_max_chars": 2000,
       "video_max_chars": 1500,
       "cooldown_days": 30,
@@ -18,7 +18,7 @@
     {
       "student_id": "matheus_it",
       "language": "it",
-      "topic": "general",
+      "topics": ["general", "health"],
       "article_max_chars": 2000,
       "video_max_chars": 1500,
       "cooldown_days": 30,

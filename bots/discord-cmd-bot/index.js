@@ -153,7 +153,7 @@ client.on("messageCreate", async (msg) => {
       "- `posts create <project>`",
       "- `email last <project>`",
       "- `languages refresh`",
-      "- `languages send <student_id> [language] [lesson_type|random]`",
+      "- `languages send <student_id> [lesson_type|random] [topic]`",
       "- `help commands`",
       "- `help projects`",
     ].join("\n");
@@ -235,17 +235,17 @@ client.on("messageCreate", async (msg) => {
         notionProject = "languages";
         if (action === "send") {
           const studentId = (parts[2] || "").toLowerCase();
-          const language = (parts[3] || "").toLowerCase();
-          const lessonType = (parts[4] || "").toLowerCase();
+          const lessonType = (parts[3] || "").toLowerCase();
+          const topic = (parts[4] || "").toLowerCase();
           if (!studentId) {
             await msg.reply(`❌ Falta o student_id. ${help}`);
             return;
           }
           const payloadObj = { student_id: studentId };
-          if (language) payloadObj.language = language;
           if (lessonType && lessonType !== "random") {
             payloadObj.lesson_type = lessonType;
           }
+          if (topic) payloadObj.topic = topic;
           payloadText = JSON.stringify(payloadObj);
           if (lessonType && lessonType === "random") {
             payloadText = JSON.stringify(payloadObj);
