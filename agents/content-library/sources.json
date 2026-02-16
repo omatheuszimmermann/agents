@@ -46,14 +46,6 @@
       "feed_url": "https://www.ansa.it/sito/ansait_rss.xml"
     },
     {
-      "id": "rai-news",
-      "name": "Rai News",
-      "language": "it",
-      "topic": "general",
-      "type": "article",
-      "feed_url": "https://www.rainews.it/rss/homepage.xml"
-    },
-    {
       "id": "wired-italia",
       "name": "Wired Italia",
       "language": "it",
@@ -76,14 +68,6 @@
       "topic": "technology",
       "type": "article",
       "feed_url": "https://www.agendadigitale.eu/feed/"
-    },
-    {
-      "id": "ansa-salute",
-      "name": "ANSA Salute",
-      "language": "it",
-      "topic": "health",
-      "type": "article",
-      "feed_url": "https://www.ansa.it/canale_saluteebenessere/notizie/rss.xml"
     },
     {
       "id": "nurse24",
@@ -126,14 +110,6 @@
       "feed_url": "https://www.ospedalebambinogesu.it/rss"
     },            
     {
-      "id": "it-tgcom24-ultimissime",
-      "name": "Tgcom24 - Ultimissime",
-      "language": "it",
-      "topic": "general",
-      "type": "article",
-      "feed_url": "http://www.tgcom24.mediaset.it/rss/ultimissime.xml"
-    },
-    {
       "id": "it-tgcom24-economia",
       "name": "Tgcom24 - Economia",
       "language": "it",
@@ -145,7 +121,7 @@
       "id": "it-tgcom24-mondo",
       "name": "Tgcom24 - Mondo",
       "language": "it",
-      "topic": "world",
+      "topic": "general",
       "type": "article",
       "feed_url": "http://www.tgcom24.mediaset.it/rss/mondo.xml"
     },
@@ -188,14 +164,6 @@
       "topic": "technology",
       "type": "video",
       "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCUMZ7gohGI9HcU9VNsr2FJQ"
-    },
-    {
-      "id": "cnbc-youtube",
-      "name": "CNBC (YouTube)",
-      "language": "en",
-      "topic": "business",
-      "type": "video",
-      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCvJJ_dzjViJCoLf5uKUTwoA"
     },
     {
       "id": "rai-news-youtube",
@@ -246,14 +214,6 @@
       "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCyLMfDkh0Rw7OiWSAOOOQnw"
     },
     {
-      "id": "sky-sports-news-youtube",
-      "name": "Sky Sports News (YouTube)",
-      "language": "en",
-      "topic": "sports",
-      "type": "video",
-      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCcw05gGzjLIs5dnxGkQHMvw"
-    },
-    {
       "id": "gazzetta-sport",
       "name": "Gazzetta dello Sport",
       "language": "it",
@@ -276,6 +236,30 @@
       "topic": "sports",
       "type": "video",
       "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCAvNr5DMVncoJnJAotXOjOQ"
+    },
+    {
+      "id": "cnn",
+      "name": "CNN Latest",
+      "language": "en",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "http://rss.cnn.com/rss/cnn_latest.rss"
+    },
+    {
+      "id": "sky-news",
+      "name": "Sky news",
+      "language": "en",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://feeds.skynews.com/feeds/rss/home.xml"
+    },
+    {
+      "id": "euronews",
+      "name": "Euronews",
+      "language": "en",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://www.euronews.com/rss?level=program&name=news"
     }
   ]
 }
