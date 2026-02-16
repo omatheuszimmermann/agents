@@ -103,11 +103,10 @@ def main() -> None:
     ]
     if student_filter:
         base_filters.append({"property": "Student", "select": {"equals": student_filter}})
-    # Requires a select property in the Language DB to control correction flow.
-    correction_prop = os.getenv("LANGUAGE_CORRECTION_STATUS_PROP", "Correction Status").strip()
+    # Use Notion native Status property to control correction flow.
     correction_pending = os.getenv("LANGUAGE_CORRECTION_PENDING", "To Correct").strip()
     correction_done = os.getenv("LANGUAGE_CORRECTION_DONE", "Corrected").strip()
-    base_filters.append({"property": correction_prop, "select": {"equals": correction_pending}})
+    base_filters.append({"property": "Status", "status": {"equals": correction_pending}})
     filt = {"and": base_filters}
     pages = notion.query_database(filter_obj=filt, limit=max(1, min(limit, 10)))
     if not pages:
@@ -139,7 +138,7 @@ def main() -> None:
         page_id = page.get("id")
         notion.update_page(page_id, {
             "Correction": {"rich_text": [{"text": {"content": correction[:2000]}}]},
-            correction_prop: {"select": {"name": correction_done}},
+            "Status": {"status": {"name": correction_done}},
         })
 
         chunks = [correction[i:i+1800] for i in range(0, len(correction), 1800)]
