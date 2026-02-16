@@ -75,7 +75,7 @@ def main() -> None:
 
     project = sys.argv[1]
     _ = project  # project is ignored; kept for worker compatibility
-    limit = 1
+    limit = 3
     student_filter = ""
     if "--limit" in sys.argv:
         idx = sys.argv.index("--limit")

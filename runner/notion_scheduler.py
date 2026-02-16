@@ -193,7 +193,7 @@ def main() -> None:
         else:
             continue
 
-        if task_type in {"content_refresh", "lesson_send"}:
+        if task_type in {"content_refresh", "lesson_send", "lesson_correct"}:
             projects = ["languages"]
         else:
             projects = projects_list()
