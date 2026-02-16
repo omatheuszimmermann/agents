@@ -10,11 +10,11 @@
       "schedule_override": {
         "monday": "article",
         "tuesday": "video",
-        "wednesday": "exercises",
-        "thursday": "grammar",
-        "friday": "article",
-        "saturday": "video",
-        "sunday": "article"
+        "wednesday": "article",
+        "thursday": "exercises",
+        "friday": "grammar",
+        "saturday": "article",
+        "sunday": "video"
       }
     },
     {
