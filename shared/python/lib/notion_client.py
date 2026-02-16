@@ -55,6 +55,34 @@ class NotionClient:
         data = _request(self.api_key, "POST", url, payload)
         return data.get("results", [])
 
+    def query_database_all(self, filter_obj: Dict[str, Any], page_size: int = 100,
+                           max_pages: Optional[int] = 20) -> List[Dict[str, Any]]:
+        url = f"{self.base_url}/databases/{self.database_id}/query"
+        results: List[Dict[str, Any]] = []
+        cursor: Optional[str] = None
+        pages = 0
+        while True:
+            payload: Dict[str, Any] = {
+                "page_size": max(1, min(page_size, 100)),
+                "filter": filter_obj,
+                "sorts": [
+                    {"timestamp": "created_time", "direction": "ascending"}
+                ],
+            }
+            if cursor:
+                payload["start_cursor"] = cursor
+            data = _request(self.api_key, "POST", url, payload)
+            results.extend(data.get("results", []))
+            pages += 1
+            if max_pages is not None and pages >= max_pages:
+                break
+            if not data.get("has_more"):
+                break
+            cursor = data.get("next_cursor")
+            if not cursor:
+                break
+        return results
+
     def query_tasks(self, status: str, limit: int = 1) -> List[Dict[str, Any]]:
         filt = {
             "property": "Status",

@@ -4,6 +4,7 @@ import sys
 import json
 import datetime
 import subprocess
+import time
 from typing import Dict, Any, List
 
 # Import Notion client
@@ -12,6 +13,7 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
 STATE_DIR = os.path.join(REPO_ROOT, "runner", "state")
 STATE_FILE = os.path.join(STATE_DIR, "notion_worker.json")
+USAGE_FILE = os.path.join(STATE_DIR, "usage.json")
 NOTIFY_SCRIPT = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
 
 from notion_client import load_notion_from_env  # noqa: E402
@@ -102,12 +104,84 @@ def update_state(patch: Dict[str, Any]) -> None:
     save_state(state)
 
 
+def load_usage() -> Dict[str, Any]:
+    try:
+        with open(USAGE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        pass
+    return {}
+
+
+def save_usage(usage: Dict[str, Any]) -> None:
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(USAGE_FILE, "w", encoding="utf-8") as f:
+        json.dump(usage, f, indent=2, ensure_ascii=False)
+
+
+def usage_day_key() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+
+
+def bump_usage_agent(agent_id: str, ok: bool, duration_sec: float, items: int) -> None:
+    usage = load_usage()
+    agents = usage.setdefault("agents", {})
+    agent = agents.setdefault(agent_id, {})
+    by_day = agent.setdefault("by_day", {})
+    day = usage_day_key()
+    day_entry = by_day.setdefault(day, {})
+
+    agent["runs_total"] = int(agent.get("runs_total", 0)) + 1
+    agent["runs_ok"] = int(agent.get("runs_ok", 0)) + (1 if ok else 0)
+    agent["runs_failed"] = int(agent.get("runs_failed", 0)) + (0 if ok else 1)
+    agent["total_duration_sec"] = float(agent.get("total_duration_sec", 0.0)) + float(duration_sec or 0.0)
+    agent["total_items"] = int(agent.get("total_items", 0)) + int(items or 0)
+
+    day_entry["runs"] = int(day_entry.get("runs", 0)) + 1
+    day_entry["failed"] = int(day_entry.get("failed", 0)) + (0 if ok else 1)
+    day_entry["duration_sec"] = float(day_entry.get("duration_sec", 0.0)) + float(duration_sec or 0.0)
+    day_entry["items"] = int(day_entry.get("items", 0)) + int(items or 0)
+
+    usage["updated_at"] = now_iso()
+    save_usage(usage)
+
+
+def bump_usage_task(task_type: str, ok: bool, duration_sec: float) -> None:
+    if not task_type:
+        return
+    usage = load_usage()
+    task_types = usage.setdefault("task_types", {})
+    task_entry = task_types.setdefault(task_type, {})
+    by_day = task_entry.setdefault("by_day", {})
+    day = usage_day_key()
+    day_entry = by_day.setdefault(day, {})
+
+    task_entry["runs_total"] = int(task_entry.get("runs_total", 0)) + 1
+    task_entry["runs_ok"] = int(task_entry.get("runs_ok", 0)) + (1 if ok else 0)
+    task_entry["runs_failed"] = int(task_entry.get("runs_failed", 0)) + (0 if ok else 1)
+    task_entry["total_duration_sec"] = float(task_entry.get("total_duration_sec", 0.0)) + float(duration_sec or 0.0)
+    task_entry["total_items"] = int(task_entry.get("total_items", 0)) + 1
+
+    day_entry["runs"] = int(day_entry.get("runs", 0)) + 1
+    day_entry["failed"] = int(day_entry.get("failed", 0)) + (0 if ok else 1)
+    day_entry["duration_sec"] = float(day_entry.get("duration_sec", 0.0)) + float(duration_sec or 0.0)
+    day_entry["items"] = int(day_entry.get("items", 0)) + 1
+
+    usage["updated_at"] = now_iso()
+    save_usage(usage)
+
+
 def run_command(command: List[str], cwd: str) -> Dict[str, Any]:
+    start = time.time()
     proc = subprocess.run(command, cwd=cwd, text=True, capture_output=True)
+    duration = time.time() - start
     return {
         "returncode": proc.returncode,
         "stdout": proc.stdout.strip(),
         "stderr": proc.stderr.strip(),
+        "duration_sec": duration,
     }
 
 
@@ -220,7 +294,7 @@ def task_to_command(task_type: str, project: str, payload: str, page_id: str) ->
     raise RuntimeError(f"Unknown task type: {task_type}")
 
 
-def main() -> None:
+def main() -> Dict[str, Any]:
     load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
     load_env_file(os.path.join(REPO_ROOT, "integrations", "discord", ".env"))
 
@@ -229,12 +303,21 @@ def main() -> None:
     result_prop = os.getenv("NOTION_RESULT_PROPERTY", "Result")
     tasks = notion.query_tasks(status="queued", limit=max_tasks)
     update_state({"last_tasks_seen": len(tasks)})
+    tasks_by_type: Dict[str, int] = {}
+    for task in tasks:
+        ttype = str(get_prop_select(task, "Type")).strip()
+        if not ttype:
+            continue
+        tasks_by_type[ttype] = tasks_by_type.get(ttype, 0) + 1
+    update_state({"last_tasks_seen_by_type": tasks_by_type})
 
     if not tasks:
         log("No queued tasks.")
         update_state({"last_result": "no_tasks"})
-        return
+        return {"tasks_processed": 0, "tasks_failed": 0, "tasks_by_type": tasks_by_type}
 
+    tasks_processed = 0
+    tasks_failed = 0
     for page in tasks:
         page_id = page.get("id")
         task_type = get_prop_select(page, "Type")
@@ -251,9 +334,12 @@ def main() -> None:
             "LastError": prop_text(""),
         })
 
+        attempted = False
         try:
             cmd = task_to_command(task_type, project, payload, page_id)
             result = run_command(cmd, cwd=REPO_ROOT)
+            tasks_processed += 1
+            attempted = True
             if result["returncode"] != 0:
                 error_text = result["stderr"] or result["stdout"] or "Unknown error"
                 log(f"Task failed: {error_text}")
@@ -265,6 +351,8 @@ def main() -> None:
                     "FinishedAt": prop_date(now_iso()),
                     "LastError": prop_text(error_text[:1500]),
                 })
+                tasks_failed += 1
+                bump_usage_task(task_type, ok=False, duration_sec=result.get("duration_sec", 0.0))
                 continue
 
             notion_result = extract_notion_result(result["stdout"])
@@ -281,6 +369,7 @@ def main() -> None:
             if chunks:
                 notion.append_paragraphs(page_id, chunks)
             log("Task done.")
+            bump_usage_task(task_type, ok=True, duration_sec=result.get("duration_sec", 0.0))
         except Exception as exc:
             log(f"Task exception: {exc}")
             notion.update_page(page_id, {
@@ -288,20 +377,36 @@ def main() -> None:
                 "FinishedAt": prop_date(now_iso()),
                 "LastError": prop_text(str(exc)[:1500]),
             })
+            if not attempted:
+                tasks_processed += 1
+            tasks_failed += 1
+            bump_usage_task(task_type, ok=False, duration_sec=0.0)
 
     update_state({"last_result": "processed"})
+    return {"tasks_processed": tasks_processed, "tasks_failed": tasks_failed, "tasks_by_type": tasks_by_type}
 
 
 def safe_main() -> None:
+    run_started = time.time()
     update_state({"last_check_at": now_iso(), "last_status": "running"})
     try:
-        main()
+        stats = main()
+        run_duration = time.time() - run_started
         update_state({
             "last_finished_at": now_iso(),
             "last_success_at": now_iso(),
             "last_status": "ok",
+            "last_duration_sec": round(run_duration, 3),
+            "last_items_processed": stats.get("tasks_processed", 0),
         })
+        bump_usage_agent(
+            "notion_worker",
+            ok=True,
+            duration_sec=run_duration,
+            items=int(stats.get("tasks_processed", 0)),
+        )
     except Exception as exc:
+        run_duration = time.time() - run_started
         log(f"Fatal error: {exc}")
         send_error_to_discord(f"[notion_worker] Fatal error: {exc}")
         update_state({
@@ -309,7 +414,14 @@ def safe_main() -> None:
             "last_error_at": now_iso(),
             "last_error": str(exc)[:1500],
             "last_status": "failed",
+            "last_duration_sec": round(run_duration, 3),
         })
+        bump_usage_agent(
+            "notion_worker",
+            ok=False,
+            duration_sec=run_duration,
+            items=0,
+        )
         raise
 
 

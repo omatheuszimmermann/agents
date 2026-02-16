@@ -3,6 +3,8 @@ import os
 import sys
 import json
 import datetime
+import time
+import subprocess
 from typing import Dict, Any, List, Tuple
 
 # Import Notion client
@@ -11,6 +13,7 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 
 STATE_DIR = os.path.join(REPO_ROOT, "runner", "state")
 STATE_FILE = os.path.join(STATE_DIR, "notion_scheduler.json")
+USAGE_FILE = os.path.join(STATE_DIR, "usage.json")
 NOTIFY_SCRIPT = os.path.join(REPO_ROOT, "integrations", "discord", "notify_discord.sh")
 
 from notion_client import load_notion_from_env, icon_for_task_type  # noqa: E402
@@ -73,6 +76,50 @@ def update_state(patch: Dict[str, Any]) -> None:
     state.update(patch)
     state["updated_at"] = iso_z(now_utc())
     save_state(state)
+
+
+def load_usage() -> Dict[str, Any]:
+    try:
+        with open(USAGE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        pass
+    return {}
+
+
+def save_usage(usage: Dict[str, Any]) -> None:
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(USAGE_FILE, "w", encoding="utf-8") as f:
+        json.dump(usage, f, indent=2, ensure_ascii=False)
+
+
+def usage_day_key() -> str:
+    return now_utc().date().isoformat()
+
+
+def bump_usage_agent(agent_id: str, ok: bool, duration_sec: float, items: int) -> None:
+    usage = load_usage()
+    agents = usage.setdefault("agents", {})
+    agent = agents.setdefault(agent_id, {})
+    by_day = agent.setdefault("by_day", {})
+    day = usage_day_key()
+    day_entry = by_day.setdefault(day, {})
+
+    agent["runs_total"] = int(agent.get("runs_total", 0)) + 1
+    agent["runs_ok"] = int(agent.get("runs_ok", 0)) + (1 if ok else 0)
+    agent["runs_failed"] = int(agent.get("runs_failed", 0)) + (0 if ok else 1)
+    agent["total_duration_sec"] = float(agent.get("total_duration_sec", 0.0)) + float(duration_sec or 0.0)
+    agent["total_items"] = int(agent.get("total_items", 0)) + int(items or 0)
+
+    day_entry["runs"] = int(day_entry.get("runs", 0)) + 1
+    day_entry["failed"] = int(day_entry.get("failed", 0)) + (0 if ok else 1)
+    day_entry["duration_sec"] = float(day_entry.get("duration_sec", 0.0)) + float(duration_sec or 0.0)
+    day_entry["items"] = int(day_entry.get("items", 0)) + int(items or 0)
+
+    usage["updated_at"] = iso_z(now_utc())
+    save_usage(usage)
 
 
 def daily_window_utc() -> Tuple[str, str]:
@@ -168,7 +215,7 @@ def create_task(notion, task_type: str, project: str) -> None:
     )
 
 
-def main() -> None:
+def main() -> Dict[str, Any]:
     load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
     load_env_file(os.path.join(REPO_ROOT, "integrations", "discord", ".env"))
     notion = load_notion_from_env(prefix="NOTION")
@@ -178,6 +225,7 @@ def main() -> None:
 
     created = 0
     skipped = 0
+    created_by_type: Dict[str, int] = {}
     for rule in rules:
         task_type = rule.get("type", "").strip()
         frequency = rule.get("frequency", "").strip()
@@ -203,22 +251,35 @@ def main() -> None:
                 create_task(notion, task_type, project)
                 log(f"Created task: type={task_type} project={project} freq={frequency}")
                 created += 1
+                created_by_type[task_type] = created_by_type.get(task_type, 0) + 1
             else:
                 log(f"Skip (already exists): type={task_type} project={project} freq={frequency}")
                 skipped += 1
-    update_state({"last_created": created, "last_skipped": skipped})
+    update_state({"last_created": created, "last_skipped": skipped, "last_created_by_type": created_by_type})
+    return {"created": created, "skipped": skipped, "created_by_type": created_by_type}
 
 
 def safe_main() -> None:
+    run_started = time.time()
     update_state({"last_check_at": iso_z(now_utc()), "last_status": "running"})
     try:
-        main()
+        stats = main()
+        run_duration = time.time() - run_started
         update_state({
             "last_finished_at": iso_z(now_utc()),
             "last_success_at": iso_z(now_utc()),
             "last_status": "ok",
+            "last_duration_sec": round(run_duration, 3),
+            "last_items_processed": stats.get("created", 0),
         })
+        bump_usage_agent(
+            "notion_scheduler",
+            ok=True,
+            duration_sec=run_duration,
+            items=int(stats.get("created", 0)),
+        )
     except Exception as exc:
+        run_duration = time.time() - run_started
         log(f"Fatal error: {exc}")
         send_error_to_discord(f"[notion_scheduler] Fatal error: {exc}")
         update_state({
@@ -226,7 +287,14 @@ def safe_main() -> None:
             "last_error_at": iso_z(now_utc()),
             "last_error": str(exc)[:1500],
             "last_status": "failed",
+            "last_duration_sec": round(run_duration, 3),
         })
+        bump_usage_agent(
+            "notion_scheduler",
+            ok=False,
+            duration_sec=run_duration,
+            items=0,
+        )
         raise
 
 
