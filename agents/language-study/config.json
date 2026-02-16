@@ -3,27 +3,35 @@
     {
       "student_id": "matheus_en",
       "language": "en",
-      "topic": "general",
+      "topics": ["general", "technology"],
+      "article_max_chars": 2000,
+      "video_max_chars": 1500,
       "cooldown_days": 30,
       "schedule_override": {
-        "monday": "article_with_video",
+        "monday": "article",
         "tuesday": "video",
         "wednesday": "exercises",
         "thursday": "grammar",
-        "friday": "article"
+        "friday": "article",
+        "saturday": "video",
+        "sunday": "article"
       }
     },
     {
       "student_id": "matheus_it",
       "language": "it",
-      "topic": "general",
+      "topics": ["general", "technology"],
+      "article_max_chars": 2000,
+      "video_max_chars": 1500,
       "cooldown_days": 30,
       "schedule_override": {
         "monday": "video",
-        "tuesday": "article_with_video",
+        "tuesday": "article",
         "wednesday": "exercises",
         "thursday": "grammar",
-        "friday": "article"
+        "friday": "article",
+        "saturday": "video",
+        "sunday": "article"
       }
     }
   ]
