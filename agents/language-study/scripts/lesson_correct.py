@@ -76,10 +76,15 @@ def main() -> None:
     project = sys.argv[1]
     _ = project  # project is ignored; kept for worker compatibility
     limit = 1
+    student_filter = ""
     if "--limit" in sys.argv:
         idx = sys.argv.index("--limit")
         if idx + 1 < len(sys.argv):
             limit = int(sys.argv[idx + 1])
+    if "--student-id" in sys.argv:
+        idx = sys.argv.index("--student-id")
+        if idx + 1 < len(sys.argv):
+            student_filter = sys.argv[idx + 1]
 
     load_env_file(os.path.join(BASE_DIR, ".env"))
     load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
@@ -91,12 +96,13 @@ def main() -> None:
         raise RuntimeError("Missing Notion config: NOTION_API_KEY / NOTION_DB_LANGUAGE_ID")
 
     notion = NotionClient(api_key=api_key, database_id=language_db_id)
-    filt = {
-        "and": [
-            {"property": "Responses", "rich_text": {"is_not_empty": True}},
-            {"property": "Correction", "rich_text": {"is_empty": True}},
-        ]
-    }
+    base_filters = [
+        {"property": "Responses", "rich_text": {"is_not_empty": True}},
+        {"property": "Correction", "rich_text": {"is_empty": True}},
+    ]
+    if student_filter:
+        base_filters.append({"property": "Student", "select": {"equals": student_filter}})
+    filt = {"and": base_filters}
     pages = notion.query_database(filter_obj=filt, limit=max(1, min(limit, 10)))
     if not pages:
         print("NOTION_RESULT: no_responses")

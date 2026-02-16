@@ -154,6 +154,7 @@ client.on("messageCreate", async (msg) => {
       "- `email last <project>`",
       "- `languages refresh`",
       "- `languages send <student_id> [lesson_type|random] [topic]`",
+      "- `languages correct [student_id]`",
       "- `help commands`",
       "- `help projects`",
     ].join("\n");
@@ -184,7 +185,7 @@ client.on("messageCreate", async (msg) => {
     const allowedActions = {
       posts: new Set(["create"]),
       email: new Set(["last"]),
-      languages: new Set(["refresh", "send"]),
+      languages: new Set(["refresh", "send", "correct"]),
     };
 
     if (!allowedDomains.has(domain)) {
@@ -221,7 +222,7 @@ client.on("messageCreate", async (msg) => {
     const typeMap = {
       posts: { create: "posts_create" },
       email: { last: "email_check" },
-      languages: { refresh: "content_refresh", send: "lesson_send" },
+      languages: { refresh: "content_refresh", send: "lesson_send", correct: "lesson_correct" },
     };
     const taskType = typeMap?.[domain]?.[action];
     if (!taskType) {
@@ -251,6 +252,11 @@ client.on("messageCreate", async (msg) => {
             payloadText = JSON.stringify(payloadObj);
           } else {
             payloadText = JSON.stringify(payloadObj);
+          }
+        } else if (action === "correct") {
+          const studentId = (parts[2] || "").toLowerCase();
+          if (studentId) {
+            payloadText = JSON.stringify({ student_id: studentId });
           }
         }
       }

@@ -202,11 +202,21 @@ def task_to_command(task_type: str, project: str, payload: str, page_id: str) ->
             cmd.extend(["--parent-task-id", page_id])
         return cmd
     if task_type == "lesson_correct":
-        return [
+        cmd = [
             "python3",
             "agents/language-study/scripts/lesson_correct.py",
             project,
         ]
+        if payload:
+            try:
+                data = json.loads(payload)
+                if isinstance(data, dict):
+                    student_id = str(data.get("student_id", "")).strip()
+                    if student_id:
+                        cmd.extend(["--student-id", student_id])
+            except Exception:
+                pass
+        return cmd
     raise RuntimeError(f"Unknown task type: {task_type}")
 
 

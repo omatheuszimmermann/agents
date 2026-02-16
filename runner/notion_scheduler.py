@@ -99,6 +99,19 @@ def twice_week_window_utc() -> Tuple[str, str]:
     return iso_z(start_dt), iso_z(end_dt)
 
 
+def interval_window_utc(hours: int) -> Tuple[str, str]:
+    if hours <= 0:
+        hours = 24
+    now = now_utc()
+    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+    seconds = int((now - epoch).total_seconds())
+    block = hours * 3600
+    start_sec = (seconds // block) * block
+    start = epoch + datetime.timedelta(seconds=start_sec)
+    end = start + datetime.timedelta(hours=hours)
+    return iso_z(start), iso_z(end)
+
+
 def projects_list() -> List[str]:
     raw = os.getenv("NOTION_PROJECTS", "secureapix")
     return [p.strip() for p in raw.split(",") if p.strip()]
@@ -174,6 +187,9 @@ def main() -> None:
             window = daily_window_utc()
         elif frequency == "twice_per_week":
             window = twice_week_window_utc()
+        elif frequency == "interval_hours":
+            hours = int(rule.get("hours", 24))
+            window = interval_window_utc(hours)
         else:
             continue
 
