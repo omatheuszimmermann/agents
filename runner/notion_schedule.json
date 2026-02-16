@@ -20,6 +20,10 @@
       "type": "lesson_correct",
       "frequency": "interval_hours",
       "hours": 3
+    },
+    {
+      "type": "agenda_reminder",
+      "frequency": "daily"
     }
   ]
 }
