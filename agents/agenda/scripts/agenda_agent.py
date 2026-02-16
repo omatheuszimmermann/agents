@@ -129,6 +129,17 @@ def get_prop_title(page: Dict[str, Any], key: str) -> str:
     return "".join(t.get("plain_text", "") for t in titles)
 
 
+def get_prop_relation_ids(page: Dict[str, Any], key: str) -> List[str]:
+    prop = page.get("properties", {}).get(key, {})
+    rels = prop.get("relation") or []
+    ids = []
+    for rel in rels:
+        rid = rel.get("id")
+        if rid:
+            ids.append(rid)
+    return ids
+
+
 def send_discord(message: str) -> None:
     channel_id = os.getenv("DISCORD_AGENDA_CHANNEL_ID", "").strip() or os.getenv("DISCORD_LOG_CHANNEL_ID", "").strip()
     if not channel_id:
@@ -200,8 +211,8 @@ def has_pending_for_date(notion: NotionClient, name: str, due_date: datetime.dat
     return len(res) > 0
 
 
-def is_active_template_status(status: str) -> bool:
-    return status in {"Pending", "Processing", "Done"}
+def is_template_status(status: str) -> bool:
+    return status == "Recurrence"
 
 
 def compute_next_due(base_due: datetime.date, recurrence: str, recurrence_day: Optional[int]) -> datetime.date:
@@ -215,7 +226,9 @@ def compute_next_due(base_due: datetime.date, recurrence: str, recurrence_day: O
 def create_recurring(notion: NotionClient) -> int:
     filt = {
         "and": [
+            {"property": "Status", "select": {"equals": "Recurrence"}},
             {"property": "Recurrence", "select": {"is_not_empty": True}},
+            {"property": "Parent Task", "relation": {"is_empty": True}},
         ]
     }
     pages = notion.query_database_all(filter_obj=filt, page_size=100, max_pages=20)
@@ -223,7 +236,9 @@ def create_recurring(notion: NotionClient) -> int:
 
     for page in pages:
         status = get_prop_select(page, "Status")
-        if not is_active_template_status(status):
+        if not is_template_status(status):
+            continue
+        if get_prop_relation_ids(page, "Parent Task"):
             continue
         recurrence = get_prop_select(page, "Recurrence")
         if not recurrence or recurrence == "none":
