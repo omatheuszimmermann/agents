@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard Global</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <nav class="top-nav">
+    <a class="nav-link" href="index.html">Painel de processos</a>
+    <a class="nav-link active" href="dashboard.html">Dashboard</a>
+  </nav>
+
+  <main class="page">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Saude e Uso</p>
+        <h1>Dashboard Global</h1>
+        <p class="subtitle">Visao consolidada para ajustar frequencias, detectar gargalos e medir o valor da automacao.</p>
+      </div>
+      <div class="top-actions">
+        <button class="btn ghost" id="refreshDashboard">Atualizar</button>
+      </div>
+    </header>
+
+    <section class="cards dashboard-grid">
+      <article class="card" id="agentRunsCard">
+        <div class="card-header">
+          <div>
+            <h2>Execucoes por agente</h2>
+            <p class="muted">Total e ultimos 7 dias.</p>
+          </div>
+        </div>
+        <div class="table compact" id="agentRunsTable"></div>
+      </article>
+
+      <article class="card" id="taskTypeRunsCard">
+        <div class="card-header">
+          <div>
+            <h2>Execucoes por tipo</h2>
+            <p class="muted">Total e ultimos 7 dias por task_type.</p>
+          </div>
+        </div>
+        <div class="table compact" id="taskTypeRunsTable"></div>
+      </article>
+
+      <article class="card" id="itemsPerRunCard">
+        <div class="card-header">
+          <div>
+            <h2>Itens por execucao</h2>
+            <p class="muted">Media e ultimo ciclo por agente.</p>
+          </div>
+        </div>
+        <div class="table compact" id="itemsPerRunTable"></div>
+      </article>
+
+      <article class="card" id="failureRatesCard">
+        <div class="card-header">
+          <div>
+            <h2>Taxa de falha</h2>
+            <p class="muted">Falhas por agente e por tipo.</p>
+          </div>
+        </div>
+        <div class="table compact" id="failureRatesTable"></div>
+      </article>
+
+      <article class="card" id="avgDurationCard">
+        <div class="card-header">
+          <div>
+            <h2>Tempo medio</h2>
+            <p class="muted">Duracao media por agente e por tipo.</p>
+          </div>
+        </div>
+        <div class="table compact" id="avgDurationTable"></div>
+      </article>
+
+      <article class="card" id="backlogCard">
+        <div class="card-header">
+          <div>
+            <h2>Backlog estimado</h2>
+            <p class="muted">Ultima leitura de tasks em fila.</p>
+          </div>
+        </div>
+        <div class="backlog" id="backlogContent"></div>
+      </article>
+
+      <article class="card" id="lastSuccessCard">
+        <div class="card-header">
+          <div>
+            <h2>Tempo desde ultimo sucesso</h2>
+            <p class="muted">Indicador rapido de saude.</p>
+          </div>
+        </div>
+        <div class="table compact" id="lastSuccessTable"></div>
+      </article>
+
+      <article class="card" id="errorTrendCard">
+        <div class="card-header">
+          <div>
+            <h2>Tendencia de erros</h2>
+            <p class="muted">Falhas nos ultimos 7 dias.</p>
+          </div>
+        </div>
+        <div class="table compact" id="errorTrendTable"></div>
+      </article>
+    </section>
+  </main>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

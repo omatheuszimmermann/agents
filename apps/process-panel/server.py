@@ -15,6 +15,7 @@ RUNNER_DIR = os.path.join(REPO_ROOT, "runner")
 LAUNCHD_DIR = os.path.expanduser("~/Library/LaunchAgents")
 STATE_DIR = os.path.join(RUNNER_DIR, "state")
 LOG_DIR = os.path.join(RUNNER_DIR, "logs")
+USAGE_FILE = os.path.join(STATE_DIR, "usage.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 EXTRA_LOG_FILES = {
     "content-library/refresh_errors.log": os.path.join(
@@ -63,6 +64,10 @@ def load_json(path: str) -> Dict:
     except Exception:
         pass
     return {}
+
+
+def load_usage() -> Dict:
+    return load_json(USAGE_FILE)
 
 
 def list_plists() -> List[Dict]:
@@ -236,6 +241,87 @@ def build_status_payload() -> Dict:
     }
 
 
+def last_days(count: int) -> List[str]:
+    today = datetime.datetime.now(datetime.timezone.utc).date()
+    return [(today - datetime.timedelta(days=i)).isoformat() for i in reversed(range(count))]
+
+
+def summarize_usage_entry(entry: Dict, days: List[str]) -> Dict:
+    by_day = entry.get("by_day") or {}
+    runs_last = sum(int(by_day.get(day, {}).get("runs", 0)) for day in days)
+    failed_last = sum(int(by_day.get(day, {}).get("failed", 0)) for day in days)
+    total_runs = int(entry.get("runs_total", 0))
+    total_failed = int(entry.get("runs_failed", 0))
+    total_items = int(entry.get("total_items", 0))
+    total_duration = float(entry.get("total_duration_sec", 0.0))
+    avg_duration = (total_duration / total_runs) if total_runs else None
+    avg_items = (total_items / total_runs) if total_runs else None
+    failure_rate = (total_failed / total_runs) if total_runs else None
+    trend = []
+    for day in days:
+        day_entry = by_day.get(day, {})
+        trend.append({
+            "date": day,
+            "runs": int(day_entry.get("runs", 0)),
+            "failed": int(day_entry.get("failed", 0)),
+        })
+    return {
+        "runs_total": total_runs,
+        "runs_failed": total_failed,
+        "runs_last": runs_last,
+        "failed_last": failed_last,
+        "total_items": total_items,
+        "total_duration_sec": total_duration,
+        "avg_duration_sec": avg_duration,
+        "avg_items_per_run": avg_items,
+        "failure_rate": failure_rate,
+        "trend_last_days": trend,
+    }
+
+
+def build_dashboard_payload() -> Dict:
+    usage = load_usage()
+    days = last_days(7)
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    agents_payload = {}
+    for worker_id in WORKERS.keys():
+        entry = (usage.get("agents") or {}).get(worker_id, {})
+        state = worker_state(worker_id)
+        summary = summarize_usage_entry(entry, days)
+        last_success_at = state.get("last_success_at")
+        last_success_age = None
+        dt = parse_iso(last_success_at) if last_success_at else None
+        if dt:
+            last_success_age = int((now - dt).total_seconds())
+        agents_payload[worker_id] = {
+            **summary,
+            "last_success_at": last_success_at,
+            "last_success_age_sec": last_success_age,
+            "last_items_processed": state.get("last_items_processed"),
+            "last_duration_sec": state.get("last_duration_sec"),
+        }
+
+    task_types_payload = {}
+    for task_type, entry in (usage.get("task_types") or {}).items():
+        task_types_payload[task_type] = summarize_usage_entry(entry, days)
+
+    worker_state_data = worker_state("notion_worker")
+    backlog = {
+        "last_tasks_seen": worker_state_data.get("last_tasks_seen"),
+        "last_tasks_seen_by_type": worker_state_data.get("last_tasks_seen_by_type") or {},
+        "last_check_at": worker_state_data.get("last_check_at"),
+    }
+
+    return {
+        "now": iso_now(),
+        "days": days,
+        "agents": agents_payload,
+        "task_types": task_types_payload,
+        "backlog_estimate": backlog,
+    }
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
@@ -256,6 +342,10 @@ class Handler(SimpleHTTPRequestHandler):
 
         if parsed.path == "/api/logs":
             self._send_json({"logs": list_logs()})
+            return
+
+        if parsed.path == "/api/dashboard":
+            self._send_json(build_dashboard_payload())
             return
 
         if parsed.path.startswith("/api/logs/"):
