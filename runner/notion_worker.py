@@ -172,6 +172,51 @@ def task_to_command(task_type: str, project: str, payload: str, page_id: str) ->
         if page_id:
             cmd.extend(["--parent-task-id", page_id])
         return cmd
+    if task_type == "content_refresh":
+        return [
+            "python3",
+            "agents/content-library/scripts/refresh_library.py",
+        ]
+    if task_type == "lesson_send":
+        cmd = [
+            "python3",
+            "agents/language-study/scripts/lesson_send.py",
+            project,
+        ]
+        if payload:
+            try:
+                data = json.loads(payload)
+                if isinstance(data, dict):
+                    student_id = str(data.get("student_id", "")).strip()
+                    topic = str(data.get("topic", "")).strip()
+                    lesson_type = str(data.get("lesson_type", "")).strip()
+                    if student_id:
+                        cmd.extend(["--student-id", student_id])
+                    if topic:
+                        cmd.extend(["--topic", topic])
+                    if lesson_type:
+                        cmd.extend(["--lesson-type", lesson_type])
+            except Exception:
+                pass
+        if page_id:
+            cmd.extend(["--parent-task-id", page_id])
+        return cmd
+    if task_type == "lesson_correct":
+        cmd = [
+            "python3",
+            "agents/language-study/scripts/lesson_correct.py",
+            project,
+        ]
+        if payload:
+            try:
+                data = json.loads(payload)
+                if isinstance(data, dict):
+                    student_id = str(data.get("student_id", "")).strip()
+                    if student_id:
+                        cmd.extend(["--student-id", student_id])
+            except Exception:
+                pass
+        return cmd
     raise RuntimeError(f"Unknown task type: {task_type}")
 
 

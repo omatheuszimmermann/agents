@@ -7,7 +7,7 @@
 
     <key>ProgramArguments</key>
     <array>
-      <string>/usr/bin/python3</string>
+      <string>/usr/local/bin/python3</string>
       <string>/Users/matheuszimmermannai/agents/runner/notion_worker.py</string>
     </array>
 
@@ -17,6 +17,12 @@
 
     <key>RunAtLoad</key>
     <true/>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>SSL_CERT_FILE</key>
+      <string>/usr/local/lib/python3.14/site-packages/certifi/cacert.pem</string>
+    </dict>
 
     <key>StandardOutPath</key>
     <string>/Users/matheuszimmermannai/agents/runner/logs/notion.worker.out</string>

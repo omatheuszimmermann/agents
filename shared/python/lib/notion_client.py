@@ -92,12 +92,19 @@ class NotionClient:
         page = _request(self.api_key, "POST", url, payload)
         return page
 
-    def create_page(self, properties: Dict[str, Any], children: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def create_page(
+        self,
+        properties: Dict[str, Any],
+        children: Optional[List[Dict[str, Any]]] = None,
+        icon_emoji: Optional[str] = None,
+    ) -> Dict[str, Any]:
         url = f"{self.base_url}/pages"
         payload: Dict[str, Any] = {
             "parent": {"database_id": self.database_id},
             "properties": properties,
         }
+        if icon_emoji:
+            payload["icon"] = {"emoji": icon_emoji}
         if children:
             payload["children"] = children
         return _request(self.api_key, "POST", url, payload)
@@ -117,6 +124,12 @@ class NotionClient:
             })
         _request(self.api_key, "PATCH", url, {"children": children})
 
+    def append_blocks(self, block_id: str, blocks: List[Dict[str, Any]]) -> None:
+        if not blocks:
+            return
+        url = f"{self.base_url}/blocks/{block_id}/children"
+        _request(self.api_key, "PATCH", url, {"children": blocks})
+
 
 def load_notion_from_env(prefix: str = "NOTION") -> NotionClient:
     api_key = os.getenv(f"{prefix}_API_KEY")
@@ -131,6 +144,9 @@ def icon_for_task_type(task_type: str) -> str:
         "email_check": "📧",
         "email_tasks_create": "🧾",
         "posts_create": "📝",
+        "content_refresh": "📚",
+        "lesson_send": "🎓",
+        "lesson_correct": "✅",
     }
     return mapping.get(task_type, "⚙️")
 

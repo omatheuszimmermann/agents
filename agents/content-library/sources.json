@@ -1,0 +1,265 @@
+{
+  "rules": {
+    "min_items": 8,
+    "max_age_days": 45,
+    "max_items_per_source": 50
+  },
+  "sources": [
+    {
+      "id": "bbc-world",
+      "name": "BBC News World",
+      "language": "en",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://feeds.bbci.co.uk/news/world/rss.xml"
+    },
+    {
+      "id": "bbc-technology",
+      "name": "BBC News Technology",
+      "language": "en",
+      "topic": "technology",
+      "type": "article",
+      "feed_url": "https://feeds.bbci.co.uk/news/technology/rss.xml"
+    },
+    {
+      "id": "techcrunch",
+      "name": "TechCrunch",
+      "language": "en",
+      "topic": "technology",
+      "type": "article",
+      "feed_url": "https://techcrunch.com/feed/"
+    },
+    {
+      "id": "easy-english-youtube",
+      "name": "Easy English (YouTube)",
+      "language": "en",
+      "topic": "education",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCg3A1noIcy8t5KJ4Xw5K0Pg"
+    },
+    {
+      "id": "ansa-italia",
+      "name": "ANSA Italia",
+      "language": "it",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://www.ansa.it/sito/ansait_rss.xml"
+    },
+    {
+      "id": "wired-italia",
+      "name": "Wired Italia",
+      "language": "it",
+      "topic": "technology",
+      "type": "article",
+      "feed_url": "https://www.wired.it/feed/rss"
+    },
+    {
+      "id": "ansa-tecnologia",
+      "name": "ANSA Tecnologia",
+      "language": "it",
+      "topic": "technology",
+      "type": "article",
+      "feed_url": "https://www.ansa.it/sito/notizie/tecnologia/tecnologia_rss.xml"
+    },
+    {
+      "id": "agenda-digitale",
+      "name": "Agenda Digitale",
+      "language": "it",
+      "topic": "technology",
+      "type": "article",
+      "feed_url": "https://www.agendadigitale.eu/feed/"
+    },
+    {
+      "id": "nurse24",
+      "name": "Nurse24",
+      "language": "it",
+      "topic": "health",
+      "type": "article",
+      "feed_url": "https://www.nurse24.it/feed/"
+    },
+    {
+      "id": "it-tgcom24-home",
+      "name": "Tgcom24 - Home page",
+      "language": "it",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "http://www.tgcom24.mediaset.it/rss/homepage.xml"
+    },
+    {
+      "id": "fnopi",
+      "name": "FNOPI - Federazione Nazionale Ordini Professioni Infermieristiche",
+      "language": "it",
+      "topic": "health",
+      "type": "article",
+      "feed_url": "https://www.fnopi.it/feed/"
+    },
+    {
+      "id": "quotidiano-sanita",
+      "name": "Quotidiano Sanità",
+      "language": "it",
+      "topic": "health",
+      "type": "article",
+      "feed_url": "https://www.quotidianosanita.it/rss/"
+    },
+    {
+      "id": "ospedale-bambino-gesu",
+      "name": "Ospedale Pediatrico Bambino Gesù",
+      "language": "it",
+      "topic": "health",
+      "type": "article",
+      "feed_url": "https://www.ospedalebambinogesu.it/rss"
+    },            
+    {
+      "id": "it-tgcom24-economia",
+      "name": "Tgcom24 - Economia",
+      "language": "it",
+      "topic": "business",
+      "type": "article",
+      "feed_url": "http://www.tgcom24.mediaset.it/rss/economia.xml"
+    },
+    {
+      "id": "it-tgcom24-mondo",
+      "name": "Tgcom24 - Mondo",
+      "language": "it",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "http://www.tgcom24.mediaset.it/rss/mondo.xml"
+    },
+    {
+      "id": "it-televideo-ultimora",
+      "name": "RAI Televideo - Ultim'ora",
+      "language": "it",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://www.servizitelevideo.rai.it/televideo/pub/rss101.xml"
+    },
+    {
+      "id": "it-televideo-homepage",
+      "name": "RAI Televideo - Home Page",
+      "language": "it",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://www.servizitelevideo.rai.it/televideo/pub/rsshp.xml"
+    },
+    {
+      "id": "bbc-news-youtube",
+      "name": "BBC News (YouTube)",
+      "language": "en",
+      "topic": "general",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA"
+    },
+    {
+      "id": "bbc-news-technology-youtube",
+      "name": "BBC News Technology (YouTube)",
+      "language": "en",
+      "topic": "technology",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA"
+    },
+    {
+      "id": "bloomberg-technology-youtube",
+      "name": "Bloomberg Technology (YouTube)",
+      "language": "en",
+      "topic": "technology",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCUMZ7gohGI9HcU9VNsr2FJQ"
+    },
+    {
+      "id": "rai-news-youtube",
+      "name": "Rai News (YouTube)",
+      "language": "it",
+      "topic": "general",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCxqR9g_1XlnfrqwHK9viwCw"
+    },
+    {
+      "id": "euronews-english-youtube",
+      "name": "Euronews English (YouTube)",
+      "language": "en",
+      "topic": "general",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSrZ3UV4jOidv8ppoVuvW9Q"
+    },
+    {
+      "id": "euronews-italiano-youtube",
+      "name": "Euronews Italiano (YouTube)",
+      "language": "it",
+      "topic": "general",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC1mX9vuLOYf8fhaXS_KcDRg"
+    },
+    {
+      "id": "bbc-sport",
+      "name": "BBC Sport",
+      "language": "en",
+      "topic": "sports",
+      "type": "article",
+      "feed_url": "https://feeds.bbci.co.uk/sport/rss.xml"
+    },
+    {
+      "id": "espn-news",
+      "name": "ESPN News",
+      "language": "en",
+      "topic": "sports",
+      "type": "article",
+      "feed_url": "https://www.espn.com/espn/rss/news"
+    },
+    {
+      "id": "bbc-sport-youtube",
+      "name": "BBC Sport (YouTube)",
+      "language": "en",
+      "topic": "sports",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCyLMfDkh0Rw7OiWSAOOOQnw"
+    },
+    {
+      "id": "gazzetta-sport",
+      "name": "Gazzetta dello Sport",
+      "language": "it",
+      "topic": "sports",
+      "type": "article",
+      "feed_url": "https://www.gazzetta.it/rss/home.xml"
+    },
+    {
+      "id": "ansa-sport",
+      "name": "ANSA Sport",
+      "language": "it",
+      "topic": "sports",
+      "type": "article",
+      "feed_url": "https://www.ansa.it/sito/notizie/sport/sport_rss.xml"
+    },
+    {
+      "id": "sky-sport-italia-youtube",
+      "name": "Sky Sport Italia (YouTube)",
+      "language": "it",
+      "topic": "sports",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCAvNr5DMVncoJnJAotXOjOQ"
+    },
+    {
+      "id": "cnn",
+      "name": "CNN Latest",
+      "language": "en",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "http://rss.cnn.com/rss/cnn_latest.rss"
+    },
+    {
+      "id": "sky-news",
+      "name": "Sky news",
+      "language": "en",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://feeds.skynews.com/feeds/rss/home.xml"
+    },
+    {
+      "id": "euronews",
+      "name": "Euronews",
+      "language": "en",
+      "topic": "general",
+      "type": "article",
+      "feed_url": "https://www.euronews.com/rss?level=program&name=news"
+    }
+  ]
+}

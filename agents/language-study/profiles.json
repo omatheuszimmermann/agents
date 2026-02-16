@@ -1,0 +1,28 @@
+{
+  "students": [
+    {
+      "id": "matheus_en",
+      "name": "Matheus",
+      "languages": ["en"],
+      "notify": {
+        "discord": true
+      }
+    },
+    {
+      "id": "matheus_it",
+      "name": "Matheus",
+      "languages": ["it"],
+      "notify": {
+        "discord": true
+      }
+    },
+    {
+      "id": "giuliana_it",
+      "name": "Giuliana",
+      "languages": ["it"],
+      "notify": {
+        "discord": true
+      }
+    }
+  ]
+}

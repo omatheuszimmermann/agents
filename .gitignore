@@ -19,3 +19,7 @@ agents/social-posts/outputs/*
 agents/social-posts/history/*
 agents/email-triage/outputs/*
 agents/email-triage/tmp/*
+agents/content-library/library.json
+agents/content-library/library.article.json
+agents/content-library/library.video.json
+agents/content-library/outputs/*

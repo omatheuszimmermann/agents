@@ -1,0 +1,34 @@
+{
+  "students": [
+    {
+      "student_id": "matheus_en",
+      "language": "en",
+      "topics": ["general", "technology"],
+      "article_max_chars": 2000,
+      "video_max_chars": 1500,
+      "cooldown_days": 30,
+      "schedule_override": {
+        "monday": "article",
+        "tuesday": "video",
+        "wednesday": "exercises",
+        "thursday": "grammar",
+        "friday": "article"
+      }
+    },
+    {
+      "student_id": "matheus_it",
+      "language": "it",
+      "topics": ["general", "health"],
+      "article_max_chars": 2000,
+      "video_max_chars": 1500,
+      "cooldown_days": 30,
+      "schedule_override": {
+        "monday": "video",
+        "tuesday": "article",
+        "wednesday": "exercises",
+        "thursday": "grammar",
+        "friday": "article"
+      }
+    }
+  ]
+}
