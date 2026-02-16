@@ -15,6 +15,14 @@
       "notify": {
         "discord": true
       }
+    },
+    {
+      "id": "giuliana_it",
+      "name": "Giuliana",
+      "languages": ["it"],
+      "notify": {
+        "discord": true
+      }
     }
   ]
 }
