@@ -16,6 +16,16 @@ LAUNCHD_DIR = os.path.expanduser("~/Library/LaunchAgents")
 STATE_DIR = os.path.join(RUNNER_DIR, "state")
 LOG_DIR = os.path.join(RUNNER_DIR, "logs")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
+EXTRA_LOG_FILES = {
+    "content-library/refresh_errors.log": os.path.join(
+        REPO_ROOT,
+        "agents",
+        "content-library",
+        "scripts",
+        "outputs",
+        "refresh_errors.log",
+    )
+}
 
 WORKERS = {
     "notion_worker": {
@@ -115,14 +125,24 @@ def compute_next_check(last_check_at: Optional[str], interval: Optional[int]) ->
     return (dt + datetime.timedelta(seconds=interval)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def build_log_index() -> Dict[str, str]:
+    index: Dict[str, str] = {}
+    if os.path.isdir(LOG_DIR):
+        for name in os.listdir(LOG_DIR):
+            path = os.path.join(LOG_DIR, name)
+            if os.path.isfile(path):
+                index[name] = path
+    for name, path in EXTRA_LOG_FILES.items():
+        if os.path.isfile(path):
+            index[name] = path
+    return index
+
+
 def list_logs() -> List[Dict]:
-    if not os.path.isdir(LOG_DIR):
-        return []
     entries = []
-    for name in sorted(os.listdir(LOG_DIR)):
-        path = os.path.join(LOG_DIR, name)
-        if not os.path.isfile(path):
-            continue
+    index = build_log_index()
+    for name in sorted(index.keys()):
+        path = index[name]
         stat = os.stat(path)
         entries.append({
             "name": name,
@@ -144,14 +164,8 @@ def tail_file(path: str, max_bytes: int) -> str:
 
 
 def safe_log_path(name: str) -> Optional[str]:
-    if not os.path.isdir(LOG_DIR):
-        return None
-    candidate = os.path.abspath(os.path.join(LOG_DIR, name))
-    if not candidate.startswith(os.path.abspath(LOG_DIR) + os.sep):
-        return None
-    if not os.path.isfile(candidate):
-        return None
-    return candidate
+    index = build_log_index()
+    return index.get(name)
 
 
 def build_status_payload() -> Dict:

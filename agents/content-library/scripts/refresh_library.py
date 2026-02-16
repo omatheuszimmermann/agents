@@ -247,9 +247,10 @@ def main() -> None:
             raw_items = parse_feed(xml_text)
         except Exception as exc:
             os.makedirs(OUTPUTS_DIR, exist_ok=True)
-            error_path = os.path.join(OUTPUTS_DIR, f"refresh_error_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log")
-            with open(error_path, "w", encoding="utf-8") as f:
-                f.write(f"{feed_url}\n{exc}\n")
+            error_path = os.path.join(OUTPUTS_DIR, "refresh_errors.log")
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            with open(error_path, "a", encoding="utf-8") as f:
+                f.write(f"[{timestamp}] {feed_url}\n{exc}\n\n")
             continue
 
         max_items = int(src.get("max_items", max_items_per_source))

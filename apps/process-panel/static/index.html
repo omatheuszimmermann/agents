@@ -115,12 +115,22 @@
       <div class="modal-header">
         <div>
           <h3>Logs do runner</h3>
-          <p class="muted">Arquivos em <code>runner/logs</code></p>
+          <p class="muted">Arquivos em <code>runner/logs</code> e logs adicionais do repo</p>
         </div>
         <button class="btn ghost" id="closeLogs">Fechar</button>
       </div>
       <div class="logs-grid">
-        <div class="logs-list" id="logsList"></div>
+        <div class="logs-column">
+          <div class="logs-filter">
+            <span class="muted">Filtro</span>
+            <select id="logsFilter">
+              <option value="all">Todos</option>
+              <option value="err">Somente err</option>
+              <option value="out">Somente out</option>
+            </select>
+          </div>
+          <div class="logs-list" id="logsList"></div>
+        </div>
         <div class="logs-viewer">
           <div class="logs-toolbar">
             <span class="muted" id="logViewerTitle">Selecione um log</span>
