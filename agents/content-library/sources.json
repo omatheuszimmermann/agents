@@ -102,6 +102,30 @@
       "feed_url": "http://www.tgcom24.mediaset.it/rss/homepage.xml"
     },
     {
+      "id": "fnopi",
+      "name": "FNOPI - Federazione Nazionale Ordini Professioni Infermieristiche",
+      "language": "it",
+      "topic": "health",
+      "type": "article",
+      "feed_url": "https://www.fnopi.it/feed/"
+    },
+    {
+      "id": "quotidiano-sanita",
+      "name": "Quotidiano Sanità",
+      "language": "it",
+      "topic": "health",
+      "type": "article",
+      "feed_url": "https://www.quotidianosanita.it/rss/"
+    },
+    {
+      "id": "ospedale-bambino-gesu",
+      "name": "Ospedale Pediatrico Bambino Gesù",
+      "language": "it",
+      "topic": "health",
+      "type": "article",
+      "feed_url": "https://www.ospedalebambinogesu.it/rss"
+    },            
+    {
       "id": "it-tgcom24-ultimissime",
       "name": "Tgcom24 - Ultimissime",
       "language": "it",
@@ -196,6 +220,62 @@
       "topic": "general",
       "type": "video",
       "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC1mX9vuLOYf8fhaXS_KcDRg"
+    },
+    {
+      "id": "bbc-sport",
+      "name": "BBC Sport",
+      "language": "en",
+      "topic": "sports",
+      "type": "article",
+      "feed_url": "https://feeds.bbci.co.uk/sport/rss.xml"
+    },
+    {
+      "id": "espn-news",
+      "name": "ESPN News",
+      "language": "en",
+      "topic": "sports",
+      "type": "article",
+      "feed_url": "https://www.espn.com/espn/rss/news"
+    },
+    {
+      "id": "bbc-sport-youtube",
+      "name": "BBC Sport (YouTube)",
+      "language": "en",
+      "topic": "sports",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCyLMfDkh0Rw7OiWSAOOOQnw"
+    },
+    {
+      "id": "sky-sports-news-youtube",
+      "name": "Sky Sports News (YouTube)",
+      "language": "en",
+      "topic": "sports",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCcw05gGzjLIs5dnxGkQHMvw"
+    },
+    {
+      "id": "gazzetta-sport",
+      "name": "Gazzetta dello Sport",
+      "language": "it",
+      "topic": "sports",
+      "type": "article",
+      "feed_url": "https://www.gazzetta.it/rss/home.xml"
+    },
+    {
+      "id": "ansa-sport",
+      "name": "ANSA Sport",
+      "language": "it",
+      "topic": "sports",
+      "type": "article",
+      "feed_url": "https://www.ansa.it/sito/notizie/sport/sport_rss.xml"
+    },
+    {
+      "id": "sky-sport-italia-youtube",
+      "name": "Sky Sport Italia (YouTube)",
+      "language": "it",
+      "topic": "sports",
+      "type": "video",
+      "feed_url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCAvNr5DMVncoJnJAotXOjOQ"
     }
   ]
 }
