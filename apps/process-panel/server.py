@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlparse
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+sys.path.insert(0, os.path.join(REPO_ROOT, "shared", "python", "lib"))
 RUNNER_DIR = os.path.join(REPO_ROOT, "runner")
 LAUNCHD_DIR = os.path.expanduser("~/Library/LaunchAgents")
 STATE_DIR = os.path.join(RUNNER_DIR, "state")
@@ -41,6 +42,8 @@ WORKERS = {
     },
 }
 
+from notion_client import load_notion_from_env  # noqa: E402
+
 
 def iso_now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -64,6 +67,19 @@ def load_json(path: str) -> Dict:
     except Exception:
         pass
     return {}
+
+
+def load_env_file(path: str) -> None:
+    if not os.path.exists(path):
+        return
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            val = v.strip().strip('"').strip("'")
+            os.environ.setdefault(k.strip(), val)
 
 
 def load_usage() -> Dict:
@@ -326,6 +342,38 @@ def build_dashboard_payload() -> Dict:
     }
 
 
+def get_task_type(page: Dict) -> str:
+    prop = page.get("properties", {}).get("Type", {})
+    sel = prop.get("select") or {}
+    name = sel.get("name", "").strip()
+    return name or "(sem tipo)"
+
+
+def build_notion_queue_payload() -> Dict:
+    load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
+    notion = load_notion_from_env(prefix="NOTION")
+    max_pages = int(os.getenv("NOTION_DASHBOARD_MAX_PAGES", "20"))
+    if max_pages <= 0:
+        max_pages = None
+    statuses = ["queued", "running", "failed", "done"]
+    status_data: Dict[str, Dict] = {}
+    for status in statuses:
+        filt = {"property": "Status", "select": {"equals": status}}
+        pages = notion.query_database_all(filter_obj=filt, page_size=100, max_pages=max_pages)
+        by_type: Dict[str, int] = {}
+        for page in pages:
+            task_type = get_task_type(page)
+            by_type[task_type] = by_type.get(task_type, 0) + 1
+        status_data[status] = {
+            "total": len(pages),
+            "by_type": by_type,
+        }
+    return {
+        "now": iso_now(),
+        "statuses": status_data,
+    }
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
@@ -350,6 +398,13 @@ class Handler(SimpleHTTPRequestHandler):
 
         if parsed.path == "/api/dashboard":
             self._send_json(build_dashboard_payload())
+            return
+
+        if parsed.path == "/api/notion-queue":
+            try:
+                self._send_json(build_notion_queue_payload())
+            except Exception as exc:
+                self._send_json({"error": "notion_error", "detail": str(exc)}, status=500)
             return
 
         if parsed.path.startswith("/api/logs/"):

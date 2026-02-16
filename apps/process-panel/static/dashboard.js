@@ -1,5 +1,6 @@
 const state = {
   data: null,
+  notion: null,
   agentsLabel: {
     notion_worker: "Notion Worker",
     notion_scheduler: "Notion Scheduler"
@@ -185,6 +186,65 @@ function renderOpsHealth() {
   container.appendChild(grid);
 }
 
+function renderNotionQueue() {
+  const statusGrid = document.getElementById("notionStatusGrid");
+  const typeTable = document.getElementById("notionTypeTable");
+  statusGrid.innerHTML = "";
+  typeTable.innerHTML = "";
+
+  if (!state.notion || !state.notion.statuses) {
+    statusGrid.textContent = "Sem dados do Notion.";
+    return;
+  }
+
+  const statuses = state.notion.statuses;
+  const statusLabels = {
+    queued: "Queued",
+    running: "Running",
+    failed: "Failed",
+    done: "Done"
+  };
+
+  Object.keys(statusLabels).forEach((status) => {
+    const chip = document.createElement("div");
+    chip.className = "status-chip";
+    chip.innerHTML = `<span>${statusLabels[status]}</span><span>${formatNumber(statuses[status]?.total || 0)}</span>`;
+    statusGrid.appendChild(chip);
+  });
+
+  const types = new Set();
+  Object.values(statuses).forEach((entry) => {
+    Object.keys(entry.by_type || {}).forEach((t) => types.add(t));
+  });
+
+  const rows = Array.from(types)
+    .sort()
+    .map((type) => {
+      const queued = statuses.queued?.by_type?.[type] || 0;
+      const running = statuses.running?.by_type?.[type] || 0;
+      const failed = statuses.failed?.by_type?.[type] || 0;
+      const done = statuses.done?.by_type?.[type] || 0;
+      const total = queued + running + failed + done;
+      return [
+        type,
+        formatNumber(queued),
+        formatNumber(running),
+        formatNumber(failed),
+        formatNumber(done),
+        formatNumber(total)
+      ];
+    });
+
+  if (rows.length === 0) {
+    typeTable.textContent = "Sem tipos no momento.";
+    return;
+  }
+
+  typeTable.appendChild(
+    buildTable(["Tipo", "Queued", "Running", "Failed", "Done", "Total"], rows)
+  );
+}
+
 function renderBacklog() {
   const container = document.getElementById("backlogContent");
   container.innerHTML = "";
@@ -252,6 +312,7 @@ function renderDashboard() {
   renderItemsPerRun();
   renderFailureRates();
   renderAvgDuration();
+  renderNotionQueue();
   renderOpsHealth();
   renderBacklog();
   renderLastSuccess();
@@ -259,11 +320,22 @@ function renderDashboard() {
 }
 
 async function loadDashboard() {
-  const res = await fetch("/api/dashboard");
-  if (!res.ok) {
+  const [dashRes, notionRes] = await Promise.all([
+    fetch("/api/dashboard"),
+    fetch("/api/notion-queue")
+  ]);
+
+  if (!dashRes.ok) {
     throw new Error("Falha ao carregar dashboard");
   }
-  state.data = await res.json();
+
+  state.data = await dashRes.json();
+
+  if (notionRes.ok) {
+    state.notion = await notionRes.json();
+  } else {
+    state.notion = null;
+  }
 }
 
 async function refresh() {
