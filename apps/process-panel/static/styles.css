@@ -342,6 +342,29 @@ h3 {
   min-width: 0;
 }
 
+.logs-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.logs-filter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.logs-filter select {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(31, 27, 22, 0.2);
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  color: inherit;
+}
+
 .logs-list {
   display: flex;
   flex-direction: column;

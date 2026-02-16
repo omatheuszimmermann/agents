@@ -1,7 +1,8 @@
 const state = {
   logs: [],
   currentLog: null,
-  lastStatus: null
+  lastStatus: null,
+  logsFilter: "all"
 };
 
 const elements = {
@@ -9,6 +10,7 @@ const elements = {
   logsBtn: document.getElementById("logsBtn"),
   logsModal: document.getElementById("logsModal"),
   closeLogs: document.getElementById("closeLogs"),
+  logsFilter: document.getElementById("logsFilter"),
   logsList: document.getElementById("logsList"),
   logContent: document.getElementById("logContent"),
   logViewerTitle: document.getElementById("logViewerTitle"),
@@ -209,11 +211,32 @@ async function loadLogsList() {
 
 function renderLogsList() {
   elements.logsList.innerHTML = "";
-  if (!state.logs.length) {
+  const filterValue = state.logsFilter;
+  const filteredLogs = state.logs.filter((log) => {
+    if (filterValue === "all") return true;
+    const name = (log.name || "").toLowerCase();
+    if (filterValue === "err") {
+      return name.includes(".err") || name.includes("error") || name.includes("errors") || name.includes("err");
+    }
+    if (filterValue === "out") {
+      return name.includes(".out");
+    }
+    return true;
+  });
+
+  const currentStillVisible = filteredLogs.some((log) => log.name === state.currentLog);
+  if (!currentStillVisible && state.currentLog) {
+    state.currentLog = null;
+    elements.logViewerTitle.textContent = "Selecione um log";
+    elements.logContent.textContent = "Escolha um arquivo para visualizar.";
+    elements.reloadLog.disabled = true;
+  }
+
+  if (!filteredLogs.length) {
     elements.logsList.textContent = "Sem logs no momento.";
     return;
   }
-  state.logs.forEach((log) => {
+  filteredLogs.forEach((log) => {
     const item = document.createElement("div");
     item.className = "log-item";
     item.textContent = `${log.name} (${Math.round(log.size / 1024)} KB)`;
@@ -255,6 +278,10 @@ function init() {
     }
   });
   elements.reloadLog.addEventListener("click", loadLogContent);
+  elements.logsFilter.addEventListener("change", (event) => {
+    state.logsFilter = event.target.value;
+    renderLogsList();
+  });
 
   elements.nw.runBtn.addEventListener("click", () => runWorker("notion_worker", elements.nw.runStatus, elements.nw.runBtn));
   elements.ns.runBtn.addEventListener("click", () => runWorker("notion_scheduler", elements.ns.runStatus, elements.ns.runBtn));
