@@ -192,7 +192,17 @@ function renderNotionQueue() {
   statusGrid.innerHTML = "";
   typeTable.innerHTML = "";
 
-  if (!state.notion || !state.notion.statuses) {
+  if (!state.notion) {
+    statusGrid.textContent = "Sem dados do Notion.";
+    return;
+  }
+
+  if (state.notion.error) {
+    statusGrid.textContent = `Erro ao consultar Notion: ${state.notion.detail || state.notion.error}`;
+    return;
+  }
+
+  if (!state.notion.statuses) {
     statusGrid.textContent = "Sem dados do Notion.";
     return;
   }
@@ -333,8 +343,13 @@ async function loadDashboard() {
 
   if (notionRes.ok) {
     state.notion = await notionRes.json();
-  } else {
-    state.notion = null;
+    return;
+  }
+
+  try {
+    state.notion = await notionRes.json();
+  } catch (err) {
+    state.notion = { error: "notion_unavailable", detail: String(err || "") };
   }
 }
 
