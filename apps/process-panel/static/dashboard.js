@@ -187,40 +187,25 @@ function renderOpsHealth() {
 }
 
 function renderNotionQueue() {
-  const statusGrid = document.getElementById("notionStatusGrid");
   const typeTable = document.getElementById("notionTypeTable");
-  statusGrid.innerHTML = "";
   typeTable.innerHTML = "";
 
   if (!state.notion) {
-    statusGrid.textContent = "Sem dados do Notion.";
+    typeTable.textContent = "Sem dados do Notion.";
     return;
   }
 
   if (state.notion.error) {
-    statusGrid.textContent = `Erro ao consultar Notion: ${state.notion.detail || state.notion.error}`;
+    typeTable.textContent = `Erro ao consultar Notion: ${state.notion.detail || state.notion.error}`;
     return;
   }
 
   if (!state.notion.statuses) {
-    statusGrid.textContent = "Sem dados do Notion.";
+    typeTable.textContent = "Sem dados do Notion.";
     return;
   }
 
   const statuses = state.notion.statuses;
-  const statusLabels = {
-    queued: "Queued",
-    running: "Running",
-    failed: "Failed",
-    done: "Done"
-  };
-
-  Object.keys(statusLabels).forEach((status) => {
-    const chip = document.createElement("div");
-    chip.className = "status-chip";
-    chip.innerHTML = `<span>${statusLabels[status]}</span><span>${formatNumber(statuses[status]?.total || 0)}</span>`;
-    statusGrid.appendChild(chip);
-  });
 
   const types = new Set();
   Object.values(statuses).forEach((entry) => {
@@ -250,9 +235,28 @@ function renderNotionQueue() {
     return;
   }
 
-  typeTable.appendChild(
-    buildTable(["Tipo", "Queued", "Running", "Failed", "Done", "Total"], rows)
-  );
+  const totalRow = [
+    "Total",
+    formatNumber(statuses.queued?.total || 0),
+    formatNumber(statuses.running?.total || 0),
+    formatNumber(statuses.failed?.total || 0),
+    formatNumber(statuses.done?.total || 0),
+    formatNumber(
+      (statuses.queued?.total || 0) +
+      (statuses.running?.total || 0) +
+      (statuses.failed?.total || 0) +
+      (statuses.done?.total || 0)
+    )
+  ];
+
+  rows.push(totalRow);
+
+  const table = buildTable(["Tipo", "Queued", "Running", "Failed", "Done", "Total"], rows);
+  const lastRow = table.querySelector(".table-row:last-child");
+  if (lastRow) {
+    lastRow.classList.add("total-row");
+  }
+  typeTable.appendChild(table);
 }
 
 function renderBacklog() {
