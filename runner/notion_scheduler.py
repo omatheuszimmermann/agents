@@ -243,6 +243,8 @@ def main() -> Dict[str, Any]:
 
         if task_type in {"content_refresh", "lesson_send", "lesson_correct"}:
             projects = ["languages"]
+        elif task_type in {"agenda_reminder"}:
+            projects = projects_list()[:1]
         else:
             projects = projects_list()
 

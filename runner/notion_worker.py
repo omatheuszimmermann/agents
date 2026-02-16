@@ -291,6 +291,11 @@ def task_to_command(task_type: str, project: str, payload: str, page_id: str) ->
             except Exception:
                 pass
         return cmd
+    if task_type == "agenda_reminder":
+        return [
+            "python3",
+            "agents/agenda/scripts/agenda_agent.py",
+        ]
     raise RuntimeError(f"Unknown task type: {task_type}")
 
 

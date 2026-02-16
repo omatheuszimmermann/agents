@@ -17,6 +17,7 @@ Este repo usa arquivos `.env` por componente. Sempre crie o `.env` a partir do `
   - `DISCORD_TOKEN` (ou)
   - `DISCORD_WEBHOOK_URL`
   - `DISCORD_LOG_CHANNEL_ID` (canal de erros)
+  - `DISCORD_AGENDA_CHANNEL_ID` (canal de avisos da agenda)
 
 3. Integracao Notion (tasks)
 - Arquivo: `integrations/notion/.env`
@@ -26,6 +27,7 @@ Este repo usa arquivos `.env` por componente. Sempre crie o `.env` a partir do `
   - `NOTION_DB_ID`
   - `NOTION_DB_EMAILS_ID`
   - `NOTION_DB_POSTS_ID`
+  - `NOTION_DB_AGENDA_ID`
   - `NOTION_MAX_TASKS` (opcional)
   - `NOTION_PROJECTS` (opcional)
   - `NOTION_SCHEDULE_FILE` (opcional)
