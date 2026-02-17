@@ -175,17 +175,18 @@ def load_schedule(path: str) -> List[Dict[str, Any]]:
     return items
 
 
-def should_create_task(notion, task_type: str, project: str, window: Tuple[str, str]) -> bool:
+def should_create_task(notion, task_type: str, project: str, window: Tuple[str, str], payload_text: str = "") -> bool:
     start, end = window
-    filt = {
-        "and": [
-            {"property": "Type", "select": {"equals": task_type}},
-            {"property": "Project", "select": {"equals": project}},
-            {"property": "RequestedBy", "select": {"equals": "system"}},
-            {"timestamp": "created_time", "created_time": {"on_or_after": start}},
-            {"timestamp": "created_time", "created_time": {"before": end}},
-        ]
-    }
+    base_filters: List[Dict[str, Any]] = [
+        {"property": "Type", "select": {"equals": task_type}},
+        {"property": "Project", "select": {"equals": project}},
+        {"property": "RequestedBy", "select": {"equals": "system"}},
+        {"timestamp": "created_time", "created_time": {"on_or_after": start}},
+        {"timestamp": "created_time", "created_time": {"before": end}},
+    ]
+    if payload_text:
+        base_filters.append({"property": "Payload", "rich_text": {"equals": payload_text}})
+    filt = {"and": base_filters}
     results = notion.query_database(filter_obj=filt, limit=1)
     if results:
         page = results[0]
@@ -202,7 +203,7 @@ def should_create_task(notion, task_type: str, project: str, window: Tuple[str, 
     return len(results) == 0
 
 
-def create_task(notion, task_type: str, project: str) -> None:
+def create_task(notion, task_type: str, project: str, payload_text: str = "") -> None:
     name = f"{task_type} {project}"
     notion.create_task(
         name=name,
@@ -210,6 +211,7 @@ def create_task(notion, task_type: str, project: str) -> None:
         project=project,
         status="queued",
         requested_by="system",
+        payload_text=payload_text,
         title_event=f"{task_type} {project}",
         icon_emoji=icon_for_task_type(task_type),
     )
@@ -229,6 +231,7 @@ def main() -> Dict[str, Any]:
     for rule in rules:
         task_type = rule.get("type", "").strip()
         frequency = rule.get("frequency", "").strip()
+        payload_text = str(rule.get("payload", "")).strip()
         if not task_type or not frequency:
             continue
         if frequency == "daily":
@@ -245,12 +248,15 @@ def main() -> Dict[str, Any]:
             projects = ["languages"]
         elif task_type in {"agenda_reminder"}:
             projects = ["agenda"]
+        elif task_type in {"pending_assistant"}:
+            project_name = os.getenv("PENDING_ASSISTANT_PROJECT", "assistant").strip() or "assistant"
+            projects = [project_name]
         else:
             projects = projects_list()
 
         for project in projects:
-            if should_create_task(notion, task_type, project, window):
-                create_task(notion, task_type, project)
+            if should_create_task(notion, task_type, project, window, payload_text=payload_text):
+                create_task(notion, task_type, project, payload_text=payload_text)
                 log(f"Created task: type={task_type} project={project} freq={frequency}")
                 created += 1
                 created_by_type[task_type] = created_by_type.get(task_type, 0) + 1

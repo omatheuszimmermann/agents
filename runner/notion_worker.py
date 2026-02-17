@@ -296,6 +296,22 @@ def task_to_command(task_type: str, project: str, payload: str, page_id: str) ->
             "python3",
             "agents/agenda/scripts/agenda_agent.py",
         ]
+    if task_type == "pending_assistant":
+        cmd = [
+            "python3",
+            "agents/pending-assistant/scripts/pending_assistant.py",
+        ]
+        if payload:
+            mode = ""
+            try:
+                data = json.loads(payload)
+                if isinstance(data, dict):
+                    mode = str(data.get("mode", "")).strip()
+            except Exception:
+                mode = payload.strip()
+            if mode:
+                cmd.extend(["--mode", mode])
+        return cmd
     raise RuntimeError(f"Unknown task type: {task_type}")
 
 
