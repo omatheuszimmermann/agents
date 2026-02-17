@@ -321,7 +321,7 @@ def main() -> Dict[str, Any]:
 
     notion = load_notion_from_env(prefix="NOTION")
     max_tasks = int(os.getenv("NOTION_MAX_TASKS", "1"))
-    result_prop = os.getenv("NOTION_RESULT_PROPERTY", "Result")
+    result_prop = "Result"
     tasks = notion.query_tasks(status="queued", limit=max_tasks)
     update_state({"last_tasks_seen": len(tasks)})
     tasks_by_type: Dict[str, int] = {}

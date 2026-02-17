@@ -160,8 +160,7 @@ def interval_window_utc(hours: int) -> Tuple[str, str]:
 
 
 def projects_list() -> List[str]:
-    raw = os.getenv("NOTION_PROJECTS", "secureapix")
-    return [p.strip() for p in raw.split(",") if p.strip()]
+    return ["secureapix"]
 
 
 def load_schedule(path: str) -> List[Dict[str, Any]]:
@@ -221,7 +220,7 @@ def main() -> Dict[str, Any]:
     load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
     load_env_file(os.path.join(REPO_ROOT, "integrations", "discord", ".env"))
     notion = load_notion_from_env(prefix="NOTION")
-    schedule_path = os.getenv("NOTION_SCHEDULE_FILE", os.path.join(REPO_ROOT, "runner", "notion_schedule.json"))
+    schedule_path = os.path.join(REPO_ROOT, "runner", "notion_schedule.json")
     log(f"Scheduler using schedule: {schedule_path}")
     rules = load_schedule(schedule_path)
 
@@ -249,8 +248,7 @@ def main() -> Dict[str, Any]:
         elif task_type in {"agenda_reminder"}:
             projects = ["agenda"]
         elif task_type in {"pending_assistant"}:
-            project_name = os.getenv("PENDING_ASSISTANT_PROJECT", "assistant").strip() or "assistant"
-            projects = [project_name]
+            projects = ["assistant"]
         else:
             projects = projects_list()
 
