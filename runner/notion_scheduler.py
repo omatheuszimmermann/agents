@@ -158,6 +158,59 @@ def interval_window_utc(hours: int) -> Tuple[str, str]:
     end = start + datetime.timedelta(hours=hours)
     return iso_z(start), iso_z(end)
 
+def weekly_window_local(day_name: str, hour: int, tz_name: str) -> Tuple[str, str]:
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = datetime.timezone.utc
+
+    day_map = {
+        "monday": 0,
+        "tuesday": 1,
+        "wednesday": 2,
+        "thursday": 3,
+        "friday": 4,
+        "saturday": 5,
+        "sunday": 6,
+    }
+    target = day_map.get((day_name or "").strip().lower(), 5)
+    now = datetime.datetime.now(tz)
+    today = now.date()
+    days_ahead = (target - today.weekday()) % 7
+    start_date = today + datetime.timedelta(days=days_ahead)
+    start_local = datetime.datetime(start_date.year, start_date.month, start_date.day, hour, 0, 0, tzinfo=tz)
+    end_local = start_local + datetime.timedelta(hours=1)
+    start_utc = start_local.astimezone(datetime.timezone.utc)
+    end_utc = end_local.astimezone(datetime.timezone.utc)
+    return iso_z(start_utc), iso_z(end_utc)
+
+def weekly_catchup_window_local(day_name: str, tz_name: str) -> Tuple[str, str]:
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = datetime.timezone.utc
+
+    day_map = {
+        "monday": 0,
+        "tuesday": 1,
+        "wednesday": 2,
+        "thursday": 3,
+        "friday": 4,
+        "saturday": 5,
+        "sunday": 6,
+    }
+    target = day_map.get((day_name or "").strip().lower(), 5)
+    now = datetime.datetime.now(tz)
+    today = now.date()
+    days_since = (today.weekday() - target) % 7
+    start_date = today - datetime.timedelta(days=days_since)
+    start_local = datetime.datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0, tzinfo=tz)
+    end_local = start_local + datetime.timedelta(days=7)
+    start_utc = start_local.astimezone(datetime.timezone.utc)
+    end_utc = end_local.astimezone(datetime.timezone.utc)
+    return iso_z(start_utc), iso_z(end_utc)
 
 def projects_list() -> List[str]:
     return ["secureapix"]
@@ -240,6 +293,15 @@ def main() -> Dict[str, Any]:
         elif frequency == "interval_hours":
             hours = int(rule.get("hours", 24))
             window = interval_window_utc(hours)
+        elif frequency == "weekly":
+            day_name = str(rule.get("day", "saturday"))
+            hour = int(rule.get("hour", 9))
+            tz_name = os.getenv("PENDING_ASSISTANT_TZ", "Europe/Rome")
+            window = weekly_window_local(day_name, hour, tz_name)
+        elif frequency == "weekly_after_friday":
+            day_name = str(rule.get("day", "saturday"))
+            tz_name = os.getenv("PENDING_ASSISTANT_TZ", "Europe/Rome")
+            window = weekly_catchup_window_local(day_name, tz_name)
         else:
             continue
 

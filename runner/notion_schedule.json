@@ -32,8 +32,8 @@
     },
     {
       "type": "pending_assistant",
-      "frequency": "interval_hours",
-      "hours": 168,
+      "frequency": "weekly_after_friday",
+      "day": "saturday",
       "payload": "weekly"
     }
   ]

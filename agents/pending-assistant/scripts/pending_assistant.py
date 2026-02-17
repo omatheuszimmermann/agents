@@ -154,6 +154,26 @@ def format_item(title: str, date_str: Optional[str] = None, url: Optional[str] =
     return line
 
 
+def item_title(item: str) -> str:
+    if " -> " in item:
+        return item.split(" -> ", 1)[0].strip()
+    return item.strip()
+
+
+def item_url(item: str) -> str:
+    if " -> " in item:
+        return item.split(" -> ", 1)[1].strip()
+    return ""
+
+
+def first_url(items: List[str]) -> str:
+    for item in items:
+        url = item_url(item)
+        if url:
+            return url
+    return ""
+
+
 def collect_emails(notion: NotionClient) -> List[str]:
     filt = status_filter("Status", ["Pending", "pending"], "status")
     pages = query_all(notion, filt)
@@ -267,6 +287,18 @@ def query_done_last_week(notion: NotionClient, status_prop_type: str, tz: dateti
     return pages
 
 
+def query_created_last_week(notion: NotionClient, tz: datetime.tzinfo) -> List[Dict[str, Any]]:
+    now = now_tz(tz)
+    start_date = (now.date() - datetime.timedelta(days=7))
+    start_dt = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=tz)
+    filt = {
+        "timestamp": "created_time",
+        "created_time": {"on_or_after": iso_dt(start_dt)},
+    }
+    pages = query_all(notion, filt)
+    return pages
+
+
 def sort_by_last_edited(pages: List[Dict[str, Any]], tz: datetime.tzinfo) -> List[Dict[str, Any]]:
     def key_fn(p: Dict[str, Any]) -> float:
         dt = parse_dt(p.get("last_edited_time", ""), tz)
@@ -278,79 +310,126 @@ def sort_by_last_edited(pages: List[Dict[str, Any]], tz: datetime.tzinfo) -> Lis
 
 def build_daily_message(tz: datetime.tzinfo, emails: List[str], posts_pending: List[str], posts_today: List[str], posts_overdue: List[str],
                         lang_pending: List[str], lang_to_correct: List[str], lang_corrected: List[str], agenda_today: List[str], agenda_overdue: List[str]) -> str:
-    today = today_date(tz).isoformat()
+    today_dt = today_date(tz)
+    today = today_dt.strftime("%d/%m/%Y")
     lines: List[str] = []
-    lines.append(f"🧭 Assistente Pessoal — Pendências ({today})")
+    lines.append(f"🧠 DAILY CONTROL — {today}")
+    lines.append("")
 
-    critical_items = []
-    if posts_overdue:
-        critical_items.extend([f"[Posts atrasados] {item}" for item in posts_overdue])
-    if agenda_overdue:
-        critical_items.extend([f"[Agenda vencida] {item}" for item in agenda_overdue])
-    if lang_pending:
-        critical_items.extend([f"[Language Pending] {item}" for item in lang_pending])
+    critical_lines: List[str] = []
+    for item in limit_lines(posts_overdue, 10):
+        title = item_title(item)
+        url = item_url(item)
+        line = f"• {title} → [abrir]" if not url else f"• {title} → [abrir]({url})"
+        critical_lines.append(line)
+    for item in limit_lines(agenda_overdue, 10):
+        title = item_title(item)
+        url = item_url(item)
+        line = f"• {title} → [abrir]" if not url else f"• {title} → [abrir]({url})"
+        critical_lines.append(line)
+    for item in limit_lines(lang_pending, 10):
+        title = item_title(item)
+        url = item_url(item)
+        line = f"• {title} → [abrir]" if not url else f"• {title} → [abrir]({url})"
+        critical_lines.append(line)
 
-    if critical_items:
-        lines.append("Críticos:")
-        lines.extend([f"- {item}" for item in limit_lines(critical_items, 10)])
+    lines.append(f"🚨 CRÍTICO ({len(critical_lines)})")
+    if critical_lines:
+        lines.extend(critical_lines)
+    lines.append("")
 
-    lines.append(f"Emails pendentes: {len(emails)}")
-    if emails:
-        lines.extend([f"- {item}" for item in limit_lines(emails, 10)])
+    posts_pending_url = first_url(posts_pending)
+    agenda_today_url = first_url(agenda_today)
+    emails_url = first_url(emails)
 
-    lines.append(f"Posts pendentes: {len(posts_pending)}")
-    if posts_pending:
-        lines.extend([f"- {item}" for item in limit_lines(posts_pending, 10)])
+    posts_pending_link = "[ver]" if not posts_pending_url else f"[ver]({posts_pending_url})"
+    agenda_today_link = "[ver]" if not agenda_today_url else f"[ver]({agenda_today_url})"
+    emails_link = "[ver]" if not emails_url else f"[ver]({emails_url})"
 
-    lines.append(f"Posts Ready hoje: {len(posts_today)}")
-    if posts_today:
-        lines.extend([f"- {item}" for item in limit_lines(posts_today, 10)])
+    lines.append("📌 HOJE")
+    lines.append(f"• Posts pendentes: {len(posts_pending)} → {posts_pending_link}")
+    lines.append(f"• Agenda: {len(agenda_today)} → {agenda_today_link}")
+    lines.append(f"• Emails: {len(emails)} → {emails_link}")
+    lines.append("")
 
-    lines.append(f"Posts Ready atrasados: {len(posts_overdue)}")
+    lang_pending_url = first_url(lang_pending)
+    lang_to_correct_url = first_url(lang_to_correct)
+    lang_corrected_url = first_url(lang_corrected)
 
-    lines.append(f"Language Pending (critico): {len(lang_pending)}")
-    if lang_pending:
-        lines.extend([f"- {item}" for item in limit_lines(lang_pending, 10)])
+    lang_pending_link = "[ver]" if not lang_pending_url else f"[ver]({lang_pending_url})"
+    lang_to_correct_link = "[ver]" if not lang_to_correct_url else f"[ver]({lang_to_correct_url})"
+    lang_corrected_link = "[ver]" if not lang_corrected_url else f"[ver]({lang_corrected_url})"
 
-    lines.append(f"Language To Correct: {len(lang_to_correct)}")
-    if lang_to_correct:
-        lines.extend([f"- {item}" for item in limit_lines(lang_to_correct, 10)])
+    lines.append("🌍 LANGUAGES")
+    lines.append(f"• Pending: {len(lang_pending)} → {lang_pending_link}")
+    lines.append(f"• To Correct: {len(lang_to_correct)} → {lang_to_correct_link}")
+    lines.append(f"• Corrected: {len(lang_corrected)} → {lang_corrected_link}")
+    lines.append("")
 
-    lines.append(f"Language Corrected (baixo): {len(lang_corrected)}")
+    posts_ready_total = len(posts_today) + len(posts_overdue)
+    posts_ready_url = first_url(posts_today) or first_url(posts_overdue)
+    posts_ready_link = "[ver]" if not posts_ready_url else f"[ver]({posts_ready_url})"
 
-    lines.append(f"Agenda hoje: {len(agenda_today)}")
-    if agenda_today:
-        lines.extend([f"- {item}" for item in limit_lines(agenda_today, 10)])
+    atrasados_total = len(posts_overdue) + len(agenda_overdue)
+    atrasados_url = first_url(posts_overdue) or first_url(agenda_overdue)
+    atrasados_link = "[ver]" if not atrasados_url else f"[ver]({atrasados_url})"
 
-    lines.append(f"Agenda atrasados: {len(agenda_overdue)}")
+    lines.append("📊 GERAL")
+    lines.append(f"• Posts Ready: {posts_ready_total} → {posts_ready_link}")
+    lines.append(f"• Atrasados: {atrasados_total} → {atrasados_link}")
 
     return "\n".join(lines).strip()
 
 
-def build_weekly_message(tz: datetime.tzinfo, emails_done: List[Dict[str, Any]], posts_done: List[Dict[str, Any]], language_done: List[Dict[str, Any]], agenda_done: List[Dict[str, Any]]) -> str:
+def build_weekly_message(
+    tz: datetime.tzinfo,
+    emails_done: List[Dict[str, Any]],
+    posts_done: List[Dict[str, Any]],
+    language_done: List[Dict[str, Any]],
+    agenda_done: List[Dict[str, Any]],
+    critical_active: int,
+    posts_pending_count: int,
+    new_tasks_created: int,
+    tasks_accumulated: int,
+) -> str:
     now = now_tz(tz)
     start_date = (now.date() - datetime.timedelta(days=7))
+
+    def fmt_day(d: datetime.date) -> str:
+        return d.strftime("%d/%m")
+
     lines: List[str] = []
-    lines.append(f"📊 Resumo semanal — {start_date.isoformat()} a {now.date().isoformat()}")
+    lines.append(f"📊 WEEKLY SNAPSHOT — {fmt_day(start_date)} a {fmt_day(now.date())}")
+    lines.append("")
 
-    def summarize(name: str, pages: List[Dict[str, Any]], title_keys: List[str]) -> None:
-        lines.append(f"{name} concluídos: {len(pages)}")
-        if not pages:
-            return
-        for page in limit_lines(pages, 10):
-            title = get_best_title(page, title_keys)
-            url = page.get("url")
-            lines.append(f"- {format_item(title, None, url)}")
+    posts_done_count = len(posts_done)
+    language_done_count = len(language_done)
+    total_done = len(emails_done) + len(posts_done) + len(language_done) + len(agenda_done)
 
-    emails_sorted = sort_by_last_edited(emails_done, tz)
-    posts_sorted = sort_by_last_edited(posts_done, tz)
-    language_sorted = sort_by_last_edited(language_done, tz)
-    agenda_sorted = sort_by_last_edited(agenda_done, tz)
+    lines.append("Entregas:")
+    lines.append(f"• Posts: {posts_done_count}")
+    lines.append(f"• Languages: {language_done_count}")
+    lines.append(f"• Total concluídas: {total_done}")
+    lines.append("")
 
-    summarize("Emails", emails_sorted, ["Subject", "Title", "Name"])
-    summarize("Posts", posts_sorted, ["Title", "Name", "Subject"])
-    summarize("Language Study", language_sorted, ["Title", "Name", "Subject"])
-    summarize("Agenda", agenda_sorted, ["Name", "Title", "Subject"])
+    lines.append("Pendências:")
+    lines.append(f"• Críticos ativos: {critical_active}")
+    lines.append(f"• Posts pendentes: {posts_pending_count}")
+    lines.append("")
+
+    acc_prefix = "+" if tasks_accumulated > 0 else ""
+    lines.append("Fluxo:")
+    lines.append(f"• Novas tasks criadas: {new_tasks_created}")
+    lines.append(f"• Tasks acumuladas: {acc_prefix}{tasks_accumulated}")
+    lines.append("")
+
+    if critical_active >= 5 or tasks_accumulated >= 5:
+        indicator = "🔴 Atenção: críticos altos ou acúmulo forte"
+    elif critical_active >= 1 or tasks_accumulated > 0:
+        indicator = "🟡 Estável, mas com acúmulo leve"
+    else:
+        indicator = "🟢 Saudável"
+    lines.append(f"Indicador: {indicator}")
 
     return "\n".join(lines).strip()
 
@@ -443,7 +522,36 @@ def main() -> int:
         language_done = query_done_last_week(language_notion, "status", tz)
         agenda_done = query_done_last_week(agenda_notion, "select", tz)
 
-        message = build_weekly_message(tz, emails_done, posts_done, language_done, agenda_done)
+        # Current pending/critical snapshot for weekly
+        emails = collect_emails(emails_notion)
+        posts_pending, posts_today, posts_overdue = collect_posts(posts_notion, tz)
+        lang_pending, lang_to_correct, lang_corrected = collect_language(language_notion)
+        agenda_today, agenda_overdue = collect_agenda(agenda_notion, tz)
+
+        critical_active = len(posts_overdue) + len(agenda_overdue) + len(lang_pending)
+        posts_pending_count = len(posts_pending)
+
+        # Created in last 7 days across DBs
+        emails_created = query_created_last_week(emails_notion, tz)
+        posts_created = query_created_last_week(posts_notion, tz)
+        language_created = query_created_last_week(language_notion, tz)
+        agenda_created = query_created_last_week(agenda_notion, tz)
+        new_tasks_created = len(emails_created) + len(posts_created) + len(language_created) + len(agenda_created)
+
+        done_total = len(emails_done) + len(posts_done) + len(language_done) + len(agenda_done)
+        tasks_accumulated = new_tasks_created - done_total
+
+        message = build_weekly_message(
+            tz,
+            emails_done,
+            posts_done,
+            language_done,
+            agenda_done,
+            critical_active,
+            posts_pending_count,
+            new_tasks_created,
+            tasks_accumulated,
+        )
         channel_id = os.getenv("DISCORD_WEEKLY_CHANNEL_ID", "").strip() or os.getenv("DISCORD_LOG_CHANNEL_ID", "").strip()
         send_discord(channel_id, message)
         print(f"NOTION_RESULT: weekly summary sent (emails={len(emails_done)} posts={len(posts_done)} agenda={len(agenda_done)})")
