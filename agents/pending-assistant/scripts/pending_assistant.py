@@ -174,6 +174,23 @@ def first_url(items: List[str]) -> str:
     return ""
 
 
+def db_url_from_id(db_id: str) -> str:
+    if not db_id:
+        return ""
+    clean = db_id.replace("-", "").strip()
+    if not clean:
+        return ""
+    return f"https://www.notion.so/{clean}"
+
+
+def group_link(items: List[str], db_id: str) -> str:
+    if not items:
+        return ""
+    if len(items) == 1:
+        return first_url(items)
+    return db_url_from_id(db_id)
+
+
 def collect_emails(notion: NotionClient) -> List[str]:
     filt = status_filter("Status", ["Pending", "pending"], "status")
     pages = query_all(notion, filt)
@@ -312,6 +329,10 @@ def build_daily_message(tz: datetime.tzinfo, emails: List[str], posts_pending: L
                         lang_pending: List[str], lang_to_correct: List[str], lang_corrected: List[str], agenda_today: List[str], agenda_overdue: List[str]) -> str:
     today_dt = today_date(tz)
     today = today_dt.strftime("%d/%m/%Y")
+    db_emails = os.getenv("NOTION_DB_EMAILS_ID", "").strip()
+    db_posts = os.getenv("NOTION_DB_POSTS_ID", "").strip()
+    db_language = os.getenv("NOTION_DB_LANGUAGE_ID", "").strip()
+    db_agenda = os.getenv("NOTION_DB_AGENDA_ID", "").strip()
     lines: List[str] = []
     lines.append(f"🧠 DAILY CONTROL — {today}")
     lines.append("")
@@ -338,45 +359,69 @@ def build_daily_message(tz: datetime.tzinfo, emails: List[str], posts_pending: L
         lines.extend(critical_lines)
     lines.append("")
 
-    posts_pending_url = first_url(posts_pending)
-    agenda_today_url = first_url(agenda_today)
-    emails_url = first_url(emails)
+    posts_pending_url = group_link(posts_pending, db_posts)
+    agenda_today_url = group_link(agenda_today, db_agenda)
+    emails_url = group_link(emails, db_emails)
 
-    posts_pending_link = "[ver]" if not posts_pending_url else f"[ver]({posts_pending_url})"
-    agenda_today_link = "[ver]" if not agenda_today_url else f"[ver]({agenda_today_url})"
-    emails_link = "[ver]" if not emails_url else f"[ver]({emails_url})"
+    posts_pending_link = "" if not posts_pending_url else f"[ver]({posts_pending_url})"
+    agenda_today_link = "" if not agenda_today_url else f"[ver]({agenda_today_url})"
+    emails_link = "" if not emails_url else f"[ver]({emails_url})"
 
     lines.append("📌 HOJE")
-    lines.append(f"• Posts pendentes: {len(posts_pending)} → {posts_pending_link}")
-    lines.append(f"• Agenda: {len(agenda_today)} → {agenda_today_link}")
-    lines.append(f"• Emails: {len(emails)} → {emails_link}")
+    posts_line = f"• Posts pendentes: {len(posts_pending)}"
+    if posts_pending_link:
+        posts_line = f"{posts_line} → {posts_pending_link}"
+    lines.append(posts_line)
+    agenda_line = f"• Agenda: {len(agenda_today)}"
+    if agenda_today_link:
+        agenda_line = f"{agenda_line} → {agenda_today_link}"
+    lines.append(agenda_line)
+    emails_line = f"• Emails: {len(emails)}"
+    if emails_link:
+        emails_line = f"{emails_line} → {emails_link}"
+    lines.append(emails_line)
     lines.append("")
 
-    lang_pending_url = first_url(lang_pending)
-    lang_to_correct_url = first_url(lang_to_correct)
-    lang_corrected_url = first_url(lang_corrected)
+    lang_pending_url = group_link(lang_pending, db_language)
+    lang_to_correct_url = group_link(lang_to_correct, db_language)
+    lang_corrected_url = group_link(lang_corrected, db_language)
 
-    lang_pending_link = "[ver]" if not lang_pending_url else f"[ver]({lang_pending_url})"
-    lang_to_correct_link = "[ver]" if not lang_to_correct_url else f"[ver]({lang_to_correct_url})"
-    lang_corrected_link = "[ver]" if not lang_corrected_url else f"[ver]({lang_corrected_url})"
+    lang_pending_link = "" if not lang_pending_url else f"[ver]({lang_pending_url})"
+    lang_to_correct_link = "" if not lang_to_correct_url else f"[ver]({lang_to_correct_url})"
+    lang_corrected_link = "" if not lang_corrected_url else f"[ver]({lang_corrected_url})"
 
     lines.append("🌍 LANGUAGES")
-    lines.append(f"• Pending: {len(lang_pending)} → {lang_pending_link}")
-    lines.append(f"• To Correct: {len(lang_to_correct)} → {lang_to_correct_link}")
-    lines.append(f"• Corrected: {len(lang_corrected)} → {lang_corrected_link}")
+    lang_pending_line = f"• Pending: {len(lang_pending)}"
+    if lang_pending_link:
+        lang_pending_line = f"{lang_pending_line} → {lang_pending_link}"
+    lines.append(lang_pending_line)
+    lang_to_correct_line = f"• To Correct: {len(lang_to_correct)}"
+    if lang_to_correct_link:
+        lang_to_correct_line = f"{lang_to_correct_line} → {lang_to_correct_link}"
+    lines.append(lang_to_correct_line)
+    lang_corrected_line = f"• Corrected: {len(lang_corrected)}"
+    if lang_corrected_link:
+        lang_corrected_line = f"{lang_corrected_line} → {lang_corrected_link}"
+    lines.append(lang_corrected_line)
     lines.append("")
 
     posts_ready_total = len(posts_today) + len(posts_overdue)
-    posts_ready_url = first_url(posts_today) or first_url(posts_overdue)
-    posts_ready_link = "[ver]" if not posts_ready_url else f"[ver]({posts_ready_url})"
+    posts_ready_url = group_link(posts_today + posts_overdue, db_posts)
+    posts_ready_link = "" if not posts_ready_url else f"[ver]({posts_ready_url})"
 
     atrasados_total = len(posts_overdue) + len(agenda_overdue)
-    atrasados_url = first_url(posts_overdue) or first_url(agenda_overdue)
-    atrasados_link = "[ver]" if not atrasados_url else f"[ver]({atrasados_url})"
+    atrasados_url = group_link(posts_overdue + agenda_overdue, db_agenda) or group_link(posts_overdue, db_posts)
+    atrasados_link = "" if not atrasados_url else f"[ver]({atrasados_url})"
 
     lines.append("📊 GERAL")
-    lines.append(f"• Posts Ready: {posts_ready_total} → {posts_ready_link}")
-    lines.append(f"• Atrasados: {atrasados_total} → {atrasados_link}")
+    posts_ready_line = f"• Posts Ready: {posts_ready_total}"
+    if posts_ready_link:
+        posts_ready_line = f"{posts_ready_line} → {posts_ready_link}"
+    lines.append(posts_ready_line)
+    atrasados_line = f"• Atrasados: {atrasados_total}"
+    if atrasados_link:
+        atrasados_line = f"{atrasados_line} → {atrasados_link}"
+    lines.append(atrasados_line)
 
     return "\n".join(lines).strip()
 
