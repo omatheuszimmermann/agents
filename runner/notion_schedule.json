@@ -24,6 +24,17 @@
     {
       "type": "agenda_reminder",
       "frequency": "daily"
+    },
+    {
+      "type": "pending_assistant",
+      "frequency": "daily",
+      "payload": "daily"
+    },
+    {
+      "type": "pending_assistant",
+      "frequency": "weekly_after_friday",
+      "day": "saturday",
+      "payload": "weekly"
     }
   ]
 }

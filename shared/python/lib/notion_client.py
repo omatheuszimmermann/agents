@@ -176,6 +176,7 @@ def icon_for_task_type(task_type: str) -> str:
         "lesson_send": "🎓",
         "lesson_correct": "✅",
         "agenda_reminder": "📅",
+        "pending_assistant": "🧭",
     }
     return mapping.get(task_type, "⚙️")
 

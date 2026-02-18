@@ -158,10 +158,62 @@ def interval_window_utc(hours: int) -> Tuple[str, str]:
     end = start + datetime.timedelta(hours=hours)
     return iso_z(start), iso_z(end)
 
+def weekly_window_local(day_name: str, hour: int, tz_name: str) -> Tuple[str, str]:
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = datetime.timezone.utc
+
+    day_map = {
+        "monday": 0,
+        "tuesday": 1,
+        "wednesday": 2,
+        "thursday": 3,
+        "friday": 4,
+        "saturday": 5,
+        "sunday": 6,
+    }
+    target = day_map.get((day_name or "").strip().lower(), 5)
+    now = datetime.datetime.now(tz)
+    today = now.date()
+    days_ahead = (target - today.weekday()) % 7
+    start_date = today + datetime.timedelta(days=days_ahead)
+    start_local = datetime.datetime(start_date.year, start_date.month, start_date.day, hour, 0, 0, tzinfo=tz)
+    end_local = start_local + datetime.timedelta(hours=1)
+    start_utc = start_local.astimezone(datetime.timezone.utc)
+    end_utc = end_local.astimezone(datetime.timezone.utc)
+    return iso_z(start_utc), iso_z(end_utc)
+
+def weekly_catchup_window_local(day_name: str, tz_name: str) -> Tuple[str, str]:
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = datetime.timezone.utc
+
+    day_map = {
+        "monday": 0,
+        "tuesday": 1,
+        "wednesday": 2,
+        "thursday": 3,
+        "friday": 4,
+        "saturday": 5,
+        "sunday": 6,
+    }
+    target = day_map.get((day_name or "").strip().lower(), 5)
+    now = datetime.datetime.now(tz)
+    today = now.date()
+    days_since = (today.weekday() - target) % 7
+    start_date = today - datetime.timedelta(days=days_since)
+    start_local = datetime.datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0, tzinfo=tz)
+    end_local = start_local + datetime.timedelta(days=7)
+    start_utc = start_local.astimezone(datetime.timezone.utc)
+    end_utc = end_local.astimezone(datetime.timezone.utc)
+    return iso_z(start_utc), iso_z(end_utc)
 
 def projects_list() -> List[str]:
-    raw = os.getenv("NOTION_PROJECTS", "secureapix")
-    return [p.strip() for p in raw.split(",") if p.strip()]
+    return ["secureapix"]
 
 
 def load_schedule(path: str) -> List[Dict[str, Any]]:
@@ -175,17 +227,18 @@ def load_schedule(path: str) -> List[Dict[str, Any]]:
     return items
 
 
-def should_create_task(notion, task_type: str, project: str, window: Tuple[str, str]) -> bool:
+def should_create_task(notion, task_type: str, project: str, window: Tuple[str, str], payload_text: str = "") -> bool:
     start, end = window
-    filt = {
-        "and": [
-            {"property": "Type", "select": {"equals": task_type}},
-            {"property": "Project", "select": {"equals": project}},
-            {"property": "RequestedBy", "select": {"equals": "system"}},
-            {"timestamp": "created_time", "created_time": {"on_or_after": start}},
-            {"timestamp": "created_time", "created_time": {"before": end}},
-        ]
-    }
+    base_filters: List[Dict[str, Any]] = [
+        {"property": "Type", "select": {"equals": task_type}},
+        {"property": "Project", "select": {"equals": project}},
+        {"property": "RequestedBy", "select": {"equals": "system"}},
+        {"timestamp": "created_time", "created_time": {"on_or_after": start}},
+        {"timestamp": "created_time", "created_time": {"before": end}},
+    ]
+    if payload_text:
+        base_filters.append({"property": "Payload", "rich_text": {"equals": payload_text}})
+    filt = {"and": base_filters}
     results = notion.query_database(filter_obj=filt, limit=1)
     if results:
         page = results[0]
@@ -202,7 +255,7 @@ def should_create_task(notion, task_type: str, project: str, window: Tuple[str, 
     return len(results) == 0
 
 
-def create_task(notion, task_type: str, project: str) -> None:
+def create_task(notion, task_type: str, project: str, payload_text: str = "") -> None:
     name = f"{task_type} {project}"
     notion.create_task(
         name=name,
@@ -210,6 +263,7 @@ def create_task(notion, task_type: str, project: str) -> None:
         project=project,
         status="queued",
         requested_by="system",
+        payload_text=payload_text,
         title_event=f"{task_type} {project}",
         icon_emoji=icon_for_task_type(task_type),
     )
@@ -219,7 +273,7 @@ def main() -> Dict[str, Any]:
     load_env_file(os.path.join(REPO_ROOT, "integrations", "notion", ".env"))
     load_env_file(os.path.join(REPO_ROOT, "integrations", "discord", ".env"))
     notion = load_notion_from_env(prefix="NOTION")
-    schedule_path = os.getenv("NOTION_SCHEDULE_FILE", os.path.join(REPO_ROOT, "runner", "notion_schedule.json"))
+    schedule_path = os.path.join(REPO_ROOT, "runner", "notion_schedule.json")
     log(f"Scheduler using schedule: {schedule_path}")
     rules = load_schedule(schedule_path)
 
@@ -229,6 +283,7 @@ def main() -> Dict[str, Any]:
     for rule in rules:
         task_type = rule.get("type", "").strip()
         frequency = rule.get("frequency", "").strip()
+        payload_text = str(rule.get("payload", "")).strip()
         if not task_type or not frequency:
             continue
         if frequency == "daily":
@@ -238,6 +293,15 @@ def main() -> Dict[str, Any]:
         elif frequency == "interval_hours":
             hours = int(rule.get("hours", 24))
             window = interval_window_utc(hours)
+        elif frequency == "weekly":
+            day_name = str(rule.get("day", "saturday"))
+            hour = int(rule.get("hour", 9))
+            tz_name = os.getenv("PENDING_ASSISTANT_TZ", "Europe/Rome")
+            window = weekly_window_local(day_name, hour, tz_name)
+        elif frequency == "weekly_after_friday":
+            day_name = str(rule.get("day", "saturday"))
+            tz_name = os.getenv("PENDING_ASSISTANT_TZ", "Europe/Rome")
+            window = weekly_catchup_window_local(day_name, tz_name)
         else:
             continue
 
@@ -245,12 +309,14 @@ def main() -> Dict[str, Any]:
             projects = ["languages"]
         elif task_type in {"agenda_reminder"}:
             projects = ["agenda"]
+        elif task_type in {"pending_assistant"}:
+            projects = ["assistant"]
         else:
             projects = projects_list()
 
         for project in projects:
-            if should_create_task(notion, task_type, project, window):
-                create_task(notion, task_type, project)
+            if should_create_task(notion, task_type, project, window, payload_text=payload_text):
+                create_task(notion, task_type, project, payload_text=payload_text)
                 log(f"Created task: type={task_type} project={project} freq={frequency}")
                 created += 1
                 created_by_type[task_type] = created_by_type.get(task_type, 0) + 1
