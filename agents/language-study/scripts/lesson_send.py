@@ -144,6 +144,14 @@ def language_label(language: str) -> str:
 
 def build_prompt(lesson_type: str, language: str, item: Optional[Dict[str, Any]]) -> str:
     lang_label = language_label(language)
+    exercise_format = (
+        "Exercise format (keep close to this structure):\n"
+        "- Writing about the text: maximum 3 questions.\n"
+        "- Multiple-choice: 3 to 5 questions, each with options labeled A, B, C, D.\n"
+        "- Fill-in-the-blank: 3 to 5 questions with blanks like \"____\".\n"
+        "Do not repeat questions or prompts.\n"
+        "Do not include answers, solutions, or filled blanks.\n"
+    )
     header = (
         f"You are a language teacher. Create a lesson in {lang_label}.\n"
         f"Write ONLY in {lang_label}. Do not use any other language.\n"
@@ -157,16 +165,17 @@ def build_prompt(lesson_type: str, language: str, item: Optional[Dict[str, Any]]
             f"SOURCE TITLE: {item.get('title','')}\n"
             f"SOURCE URL: {item.get('url','')}\n"
             f"SUMMARY: {item.get('summary','')}\n"
-            "Create: brief intro, key vocabulary, 5 comprehension questions, and 5 exercises.\n"
+            "Create: brief intro, key vocabulary, 5 comprehension questions, and exercises.\n"
+            + exercise_format
         )
         return header + content_block
     if lesson_type == "grammar":
-        return header + "Create a short grammar lesson with examples and 5 exercises.\n"
+        return header + "Create a short grammar lesson with examples and exercises.\n" + exercise_format
     if lesson_type == "exercises":
-        return header + "Create 10 mixed exercises (reading, writing, and short answers).\n"
+        return header + "Create a single exercise list.\n" + exercise_format
     if lesson_type == "review":
-        return header + "Create a weekly review: recap + 8 exercises.\n"
-    return header + "Create a general lesson with 5 exercises.\n"
+        return header + "Create a weekly review: recap + exercises.\n" + exercise_format
+    return header + "Create a general lesson with exercises.\n" + exercise_format
 
 
 def fetch_url_text(url: str, timeout: int = 30) -> str:
@@ -238,6 +247,14 @@ def build_prompt_with_article(
     article_text: str,
 ) -> str:
     lang_label = language_label(language)
+    exercise_format = (
+        "Exercise format (keep close to this structure):\n"
+        "- Writing about the text: maximum 3 questions.\n"
+        "- Multiple-choice: 3 to 5 questions, each with options labeled A, B, C, D.\n"
+        "- Fill-in-the-blank: 3 to 5 questions with blanks like \"____\".\n"
+        "Do not repeat questions or prompts.\n"
+        "Do not include answers, solutions, or filled blanks.\n"
+    )
     header = (
         f"You are a language teacher. Create a lesson in {lang_label}.\n"
         f"Write ONLY in {lang_label}. Do not use any other language.\n"
@@ -257,7 +274,8 @@ def build_prompt_with_article(
             + "ARTICLE TEXT:\n"
             + article_text
             + "\n\n"
-            + "Create: brief intro, key vocabulary, 5 comprehension questions, and 5 exercises.\n"
+            + "Create: brief intro, key vocabulary, 5 comprehension questions, and exercises.\n"
+            + exercise_format
         )
     return build_prompt(lesson_type, language, item)
 

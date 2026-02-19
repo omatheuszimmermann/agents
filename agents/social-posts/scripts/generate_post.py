@@ -47,6 +47,23 @@ def read_file(path: str) -> str:
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
+def extract_project_section(markdown: str, heading: str) -> str:
+    if not markdown:
+        return ""
+    heading_re = re.compile(rf"^#{1,6}\s*{re.escape(heading)}\s*$", re.IGNORECASE)
+    lines = markdown.splitlines()
+    in_section = False
+    buf = []
+    for line in lines:
+        if heading_re.match(line.strip()):
+            in_section = True
+            continue
+        if in_section and re.match(r"^#{1,6}\s+\S", line.strip()):
+            break
+        if in_section:
+            buf.append(line)
+    return "\n".join(buf).strip()
+
 def extract_sections(markdown: str) -> dict:
     sections = {}
     lines = markdown.splitlines()
@@ -230,6 +247,7 @@ def main():
     llm = load_llm_from_env(prefix="LLM")
 
     project_spec = read_file(project_file)
+    base_image_prompt = extract_project_section(project_spec, "Base Image Prompt")
     os.makedirs(HISTORY_DIR, exist_ok=True)
     history_file = os.path.join(HISTORY_DIR, f"{project}.json")
 
@@ -254,6 +272,15 @@ def main():
 
     topic_line = f"TOPIC (manual override): {topic}\n\n" if topic else ""
 
+    base_prompt_block = ""
+    if base_image_prompt:
+        base_prompt_block = (
+            "BASE IMAGE PROMPT (fixed style):\n"
+            f"{base_image_prompt}\n"
+            "The Image Prompt MUST start with this base prompt verbatim, then add only scene details derived "
+            "from the Description.\n\n"
+        )
+
     user_prompt = (
         "Generate ONE complete social media post using the project specification below.\n"
         "If no topic is provided, you MUST choose a NEW description angle that is not repetitive.\n\n"
@@ -261,6 +288,7 @@ def main():
         "--------------------\n"
         f"{project_spec}\n"
         "--------------------\n\n"
+        f"{base_prompt_block}"
         f"{topic_line}"
         "PAST POSTS (JSON history):\n"
         "--------------------\n"
